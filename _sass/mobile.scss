@@ -1,0 +1,125 @@
+@import "_variables";
+
+@media only screen and (max-width: 900px) {
+  body {
+    font-size: 12px;
+
+    .main-sidebar {
+      display: none;
+    }
+
+    &.open-mobile-menu {
+      .main-sidebar {
+        display: block;
+      }
+
+      .mobile-menu {
+        color: $base-color;
+      }
+
+      .homepage {
+        .mobile-menu {
+          color: $primary-color;
+        }
+      }
+    }
+  }
+
+  img.kg-image {
+    width: 100%;
+    height: auto;
+  }
+
+  .hide-on-mobile {
+    display: none;
+  }
+
+  .mobile-menu {
+    z-index: 10;
+    position: absolute;
+    top: $base-space * 5;
+    left: $base-space * 4;
+    color: $base-color;
+    font-size: 1.4em;
+    display: block;
+  }
+
+  .main-sidebar {
+    position: absolute;
+  }
+
+  .homepage {
+    line-height: 1.2em;
+    position: relative;
+
+    .top-nav {
+      display: none;
+    }
+
+    .main-sidebar {
+      background-color: $base-color;
+      color: $primary-color;
+
+      a {
+        color: $primary-color;
+      }
+
+      .nav {
+        border-top: 1px solid $primary-color;
+
+        li {
+          border-bottom: 1px solid $primary-color;
+        }
+      }
+
+      .avatar img {
+        border: $base-space * 2 solid $primary-color;
+      }
+    }
+
+    .main-section {
+      line-height: 1.6em;
+      height: 100%;
+      padding: $base-space * 4;
+
+      p.tagline {
+        margin-top: $base-space * 4;
+      }
+
+      .social-links {
+        font-size: 1.2em;
+        display: flex;
+        justify-content: center;
+
+        a {
+          display: inline-block;
+          padding: $base-space * 2 $base-space * 3;
+          width: $base-space * 10;
+          height: $base-space * 10;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+    }
+  }
+
+  .index-page {
+    .mobile-menu {
+      color: $primary-color;
+    }
+
+    section.main-section {
+      width: 100%;
+      padding: $base-space * 4 $base-space * 11;
+    }
+
+    article.article {
+      width: 100%;
+
+      h1 {
+        margin-top: -4px;
+      }
+    }
+  }
+}

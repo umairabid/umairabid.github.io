@@ -1,0 +1,22 @@
+/* Variables
+/* ---------------------------------------------------------- */
+
+$base-color: #fff;
+$primary-color: #377df7;
+$secondry-color: #ff1a75;
+$text-color: #666362;
+$secondry-text-color: #a3a1a1;
+$base-space: 4px;
+$base-font-size: 1em;
+
+
+@mixin avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: $base-space * 8;
+
+  img {
+      border: $base-space * 2 solid #fff;
+      border-radius: $base-space * 50;
+  }
+}

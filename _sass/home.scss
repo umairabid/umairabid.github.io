@@ -1,0 +1,54 @@
+@import "_variables";
+
+.homepage {
+  height: 100%;
+
+  $nav-height: $base-space * 20;
+  $nav-spacing: $base-space * 4;
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    height: $nav-height;
+    padding: $base-space * 3 $nav-spacing;
+
+    .logo img {
+      height: 100%;
+      padding: 0 $base-space * 4;
+    }
+
+    .nav {
+      list-style: none;
+      display: flex;
+
+      a {
+        padding: $base-space * 4;
+        font-size: 1.2em;
+        display: block;
+      }
+    }
+  }
+
+  .main-sidebar {
+    display: none;
+  }
+
+  .main-section {
+    background-color: $primary-color;
+    height: calc(100% - $nav-height);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    line-height: 2.4em;
+    color: $base-color;
+    text-align: center;
+
+    .social-links {
+      margin-top: $base-space * 12;
+    }
+
+    .avatar {
+      @include avatar;
+    }
+  }
+}
