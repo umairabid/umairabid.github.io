@@ -28,6 +28,8 @@ body {
   font-weight: 300;
   font-size: 1em;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 a.link-button {
@@ -48,55 +50,8 @@ h1 {
   width: 100%;
 }
 
-sidebar.main-sidebar {
-  width: 320px;
-  height: 100%;
-  background-color: #377df7;
-  text-align: center;
-  z-index: 9;
-  color: #fff;
-}
-sidebar.main-sidebar a {
-  color: #fff;
-}
-sidebar.main-sidebar .avatar {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32px;
-  padding: 32px 0;
-  margin: 0;
-}
-sidebar.main-sidebar .avatar img {
-  border: 8px solid #fff;
-  border-radius: 200px;
-}
-sidebar.main-sidebar .social-links {
-  display: flex;
-  justify-content: center;
-  padding-bottom: 32px;
-}
-sidebar.main-sidebar .social-links a {
-  padding: 4px;
-  font-size: 1.4em;
-}
-sidebar.main-sidebar .nav {
-  border-top: 1px #fff solid;
-  list-style: none;
-}
-sidebar.main-sidebar .nav li {
-  text-align: left;
-  border-bottom: 1px #fff solid;
-}
-sidebar.main-sidebar .nav li.nav-current a {
-  background-color: #fff;
-  color: #ff1a75;
-}
-sidebar.main-sidebar .nav a {
-  font-size: 1.2em;
-  padding: 16px;
-  display: block;
-}
-
+/* Variables
+/* ---------------------------------------------------------- */
 .index-page {
   height: 100%;
   width: 100%;
@@ -145,66 +100,94 @@ sidebar.main-sidebar .nav a {
 .index-page article.article p {
   margin: 16px 0;
 }
-.index-page article.article.post h1 {
+.index-page article.article img {
+  width: 100%;
+}
+.index-page article.article h1 {
   margin-bottom: 32px;
 }
-.index-page article.article.post h2 {
+.index-page article.article h2 {
   margin-top: 32px;
 }
-.index-page article.article.post h3 {
+.index-page article.article h3 {
   margin-top: 24px;
 }
-.index-page article.article.post strong {
+.index-page article.article strong {
   font-weight: 400;
   color: #ff1a75;
 }
-.index-page article.article.post ol, .index-page article.article.post ul {
+.index-page article.article ol, .index-page article.article ul {
   padding-left: 28px;
 }
-.index-page article.article.post ol li, .index-page article.article.post ul li {
+.index-page article.article ol li, .index-page article.article ul li {
   margin-bottom: 16px;
 }
-.index-page article.article.post ol li ol, .index-page article.article.post ol li ul, .index-page article.article.post ul li ol, .index-page article.article.post ul li ul {
+.index-page article.article ol li ol, .index-page article.article ol li ul, .index-page article.article ul li ol, .index-page article.article ul li ul {
   margin-top: 16px;
 }
-.index-page article.article.post pre {
-  background-color: #000;
-  padding: 0;
-  width: 100%;
-}
-.index-page article.article.post pre ol {
-  background-color: #666362;
-  padding-left: 40px;
-  border-radius: 4px;
-}
-.index-page article.article.post pre ol li {
-  margin: 0;
-  background-color: #000 !important;
-  list-style: decimal;
-  padding-left: 8px;
-}
-.index-page article.article.post pre ol li:first-child {
-  border-top-right-radius: 4px;
-}
-.index-page article.article.post pre ol li:first-child {
-  border-bottom-right-radius: 4px;
-}
-.index-page article.article.post code {
+.index-page article.article pre {
   background-color: #eee;
-  padding: 4px;
-  font-size: 0.9em;
-  font-family: monospace;
+  border-radius: 12px;
+  padding: 12px;
 }
-.index-page article.article.post .kg-card {
-  display: flex;
-  margin: 40px 0;
-  justify-content: center;
-}
-.index-page article.article.post blockquote {
+.index-page article.article blockquote {
   background-color: #eee;
   padding: 8px;
   border-radius: 4px;
   border-left: #ff1a75 4px solid;
+}
+
+/* Variables
+/* ---------------------------------------------------------- */
+sidebar.main-sidebar {
+  width: 320px;
+  height: 100%;
+  background-color: #377df7;
+  text-align: center;
+  z-index: 9;
+  color: #fff;
+}
+sidebar.main-sidebar a {
+  color: #fff;
+}
+sidebar.main-sidebar .avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+  padding: 32px 0;
+  margin: 0;
+}
+sidebar.main-sidebar .avatar img {
+  border: 8px solid #fff;
+  border-radius: 200px;
+}
+sidebar.main-sidebar .social-links {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 32px;
+}
+sidebar.main-sidebar .social-links a {
+  padding: 4px;
+  font-size: 1.4em;
+}
+sidebar.main-sidebar .nav {
+  border-top: 1px #fff solid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+sidebar.main-sidebar .nav li {
+  text-align: left;
+  border-bottom: 1px #fff solid;
+}
+sidebar.main-sidebar .nav li.nav-current a {
+  background-color: #fff;
+  color: #ff1a75;
+}
+sidebar.main-sidebar .nav a {
+  font-size: 1.2em;
+  padding: 16px;
+  display: block;
 }
 
 /*# sourceMappingURL=styles.css.map */

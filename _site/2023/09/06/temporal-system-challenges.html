@@ -33,7 +33,8 @@
       </ul>
     </sidebar>
     <section class="main-section">
-      <p>When we store information in our database, we normally store it without a time dimension even if it is only valid for a specific period of time. For example, people move around all the time, but most apps ask for your current address and rely on you to change it whenever you move. This works because most applications have no use case to be aware of your address history and only need your current address.</p>
+      <article class="article">
+        <p>When we store information in our database, we normally store it without a time dimension even if it is only valid for a specific period of time. For example, people move around all the time, but most apps ask for your current address and rely on you to change it whenever you move. This works because most applications have no use case to be aware of your address history and only need your current address.</p>
 
 <p>However, for some systems, the time dimension is omnipresent whenever data is queried or mutated, and implementing them on traditional data models can pose serious challenges. I had a chance to work on a project with similar challenges that provided a good learning experience on how to overcome them. The project makes a good use case of how temporality can help streamline operations. To go into the details while not revealing proprietary information, let’s use an example of a tax system.</p>
 
@@ -124,6 +125,7 @@
 <p>In our forthcoming article, we will delve into a solution that tackles these issues without unnecessarily inflating system complexity.</p>
 
 
+      </article>
     </section>
   </div>
 </body>

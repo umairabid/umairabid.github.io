@@ -33,7 +33,8 @@
       </ul>
     </sidebar>
     <section class="main-section">
-      <p>In <a href="/2023/09/06/temporal-system-challenges.html">Challenges of Time-Based Systems Without Proper Database Structures</a>, we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will describe how we added that foundation to support temporal use cases. We will start by discussing how we built the foundation using Postgres ranges that could be a potential denominator for any time-based system. The solution might not be general enough but it can provide some good insights for building a foundation for the temporal system.</p>
+      <article class="article">
+        <p>In <a href="/2023/09/06/temporal-system-challenges.html">Challenges of Time-Based Systems Without Proper Database Structures</a>, we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will describe how we added that foundation to support temporal use cases. We will start by discussing how we built the foundation using Postgres ranges that could be a potential denominator for any time-based system. The solution might not be general enough but it can provide some good insights for building a foundation for the temporal system.</p>
 
 <h1 id="migrating-first-table">Migrating First Table</h1>
 
@@ -219,6 +220,7 @@ ORDER BY lower(effective_range)
 <p>This project was not easy or smooth by easy means as we had to deal with some issues that were not directly related to not have temporality but as we moved ahead with the system the choice of undertaking a large refactor proved to be correct. It was a great reminder that no matter how good you are design is, if it isn’t compatible with business it can’t get you very far.</p>
 
 
+      </article>
     </section>
   </div>
 </body>
