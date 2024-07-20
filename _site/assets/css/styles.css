@@ -48,59 +48,55 @@ h1 {
   width: 100%;
 }
 
-/* Variables
-/* ---------------------------------------------------------- */
-.homepage {
+sidebar.main-sidebar {
+  width: 320px;
   height: 100%;
-}
-.homepage .top-nav {
-  display: flex;
-  justify-content: space-between;
-  height: 80px;
-  padding: 12px 16px;
-}
-.homepage .top-nav .logo img {
-  height: 100%;
-  padding: 0 16px;
-}
-.homepage .top-nav .nav {
-  list-style: none;
-  display: flex;
-}
-.homepage .top-nav .nav a {
-  padding: 16px;
-  font-size: 1.2em;
-  display: block;
-}
-.homepage .main-sidebar {
-  display: none;
-}
-.homepage .main-section {
   background-color: #377df7;
-  height: calc(100% - 80px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  line-height: 2.4em;
-  color: #fff;
   text-align: center;
+  z-index: 9;
+  color: #fff;
 }
-.homepage .main-section .social-links {
-  margin-top: 48px;
+sidebar.main-sidebar a {
+  color: #fff;
 }
-.homepage .main-section .avatar {
+sidebar.main-sidebar .avatar {
   display: flex;
   justify-content: center;
   margin-bottom: 32px;
+  padding: 32px 0;
+  margin: 0;
 }
-.homepage .main-section .avatar img {
+sidebar.main-sidebar .avatar img {
   border: 8px solid #fff;
   border-radius: 200px;
 }
+sidebar.main-sidebar .social-links {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 32px;
+}
+sidebar.main-sidebar .social-links a {
+  padding: 4px;
+  font-size: 1.4em;
+}
+sidebar.main-sidebar .nav {
+  border-top: 1px #fff solid;
+  list-style: none;
+}
+sidebar.main-sidebar .nav li {
+  text-align: left;
+  border-bottom: 1px #fff solid;
+}
+sidebar.main-sidebar .nav li.nav-current a {
+  background-color: #fff;
+  color: #ff1a75;
+}
+sidebar.main-sidebar .nav a {
+  font-size: 1.2em;
+  padding: 16px;
+  display: block;
+}
 
-/* Variables
-/* ---------------------------------------------------------- */
 .index-page {
   height: 100%;
   width: 100%;
@@ -209,174 +205,6 @@ h1 {
   padding: 8px;
   border-radius: 4px;
   border-left: #ff1a75 4px solid;
-}
-
-/* Variables
-/* ---------------------------------------------------------- */
-.post-card-content {
-  border-bottom: 1px solid #a3a1a1;
-  padding-bottom: 24px;
-  margin-bottom: 24px;
-}
-.post-card-content .post-card-header .post-card-tags a {
-  background-color: #377df7;
-  color: #fff;
-  font-size: 0.8em;
-  padding: 4px 8px;
-  border-radius: 100px;
-}
-.post-card-content .post-card-meta {
-  font-size: 0.8em;
-  color: #a3a1a1;
-}
-.post-card-content .post-card-meta .post-card-meta-length:before {
-  content: " ";
-  width: 2px;
-  height: 2px;
-  background-color: #a3a1a1;
-  display: inline-block;
-  vertical-align: middle;
-  margin-right: 5px;
-  margin-left: 3px;
-  border-radius: 12px;
-}
-
-/* Reset
-/* ---------------------------------------------------------- */
-html,
-body,
-div,
-span,
-applet,
-object,
-iframe,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-blockquote,
-pre,
-a,
-abbr,
-acronym,
-address,
-big,
-cite,
-code,
-del,
-dfn,
-em,
-img,
-ins,
-kbd,
-q,
-s,
-samp,
-small,
-strike,
-strong,
-sub,
-sup,
-tt,
-var,
-dl,
-dt,
-dd,
-ol,
-ul,
-li,
-fieldset,
-form,
-label,
-legend,
-table,
-caption,
-tbody,
-tfoot,
-thead,
-tr,
-th,
-td,
-article,
-aside,
-canvas,
-details,
-embed,
-figure,
-figcaption,
-footer,
-header,
-hgroup,
-menu,
-nav,
-output,
-ruby,
-section,
-summary,
-time,
-mark,
-audio,
-video {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font: inherit;
-  font-size: 100%;
-  vertical-align: baseline;
-}
-
-/* Variables
-/* ---------------------------------------------------------- */
-sidebar.main-sidebar {
-  width: 320px;
-  height: 100%;
-  background-color: #377df7;
-  text-align: center;
-  z-index: 9;
-  color: #fff;
-}
-sidebar.main-sidebar a {
-  color: #fff;
-}
-sidebar.main-sidebar .avatar {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32px;
-  padding: 32px 0;
-  margin: 0;
-}
-sidebar.main-sidebar .avatar img {
-  border: 8px solid #fff;
-  border-radius: 200px;
-}
-sidebar.main-sidebar .social-links {
-  display: flex;
-  justify-content: center;
-  padding-bottom: 32px;
-}
-sidebar.main-sidebar .social-links a {
-  padding: 4px;
-  font-size: 1.4em;
-}
-sidebar.main-sidebar .nav {
-  border-top: 1px #fff solid;
-  list-style: none;
-}
-sidebar.main-sidebar .nav li {
-  text-align: left;
-  border-bottom: 1px #fff solid;
-}
-sidebar.main-sidebar .nav li.nav-current a {
-  background-color: #fff;
-  color: #ff1a75;
-}
-sidebar.main-sidebar .nav a {
-  font-size: 1.2em;
-  padding: 16px;
-  display: block;
 }
 
 /*# sourceMappingURL=styles.css.map */

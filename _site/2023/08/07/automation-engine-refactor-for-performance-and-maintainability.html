@@ -1,22 +1,41 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Blog</title>
-    <link rel="stylesheet" href="/assets/css/styles.css">
-  </head>
-  <body>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/blog/">Blog</a>
-    </nav>
-    <h1>Blog</h1>
-    <section>
-      <h1 id="automation-engine-refactor-for-performance-and-maintainability">Automation Engine Refactor for Performance and Maintainability</h1>
 
-<p>Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day again, at least for the exact root cause.</p>
+<head>
+  <meta charset="utf-8">
+  <title>Automation Engine Refactor for Performance and Maintainability</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="/assets/img/logo.svg">
+  <script src="https://kit.fontawesome.com/df7810f55f.js" crossorigin="anonymous"></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
 
-<h2 id="situation">Situation</h2>
+<body>
+  <div id="main-blog-container" class="index-page">
+    <sidebar class="main-sidebar">
+      <div class="avatar"><img src="/assets/img/avatar.png" height="160" /></div>
+      <h1>Umair Abid</h1>
+      <p class="social-links">
+        <a href="https://www.linkedin.com/in/umairabid/" target="_blank"><i class="fab fa-linkedin"></i></a>
+        <a href="https://github.com/umairabid" target="_blank"><i class="fab fa-github-square"></i></a>
+        <a href="https://twitter.com/umairabid_" target="_blank"><i class="fab fa-twitter-square"></i></a>
+      </p>
+      <ul class="nav">
+        <li class="nav-home"><a href="/">Home</a></li>
+        <li class="nav-blog nav-current-parent"><a href="/blog">Blog</a></li>
+        <li class="nav-about"><a href="/about-me">About</a></li>
+      </ul>
+    </sidebar>
+    <section class="main-section">
+      <p>Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day again, at least for the exact root cause.</p>
+
+<h1 id="situation">Situation</h1>
 
 <p>The problem originated from the Pipeline Automation Engine of our CRM app. A pipeline consists of a series of stages that a <a href="https://en.wikipedia.org/wiki/Lead_generation?ref=umairabid.com">lead</a> go through to either become a sale or be lost. Each stage has associated actions like sending emails or text, in addition to the move action which decides the next stage for the lead. To understand how the flow works, please consider the preliminary database design below.</p>
 
@@ -36,7 +55,7 @@
 
 <p><strong>Lead Stage Actions</strong>: All the actions which have been performed on lead are recorded by stage in this table. As soon as the lead enters in stage, this table is also populated with actions for that stage. Actions are executed serially.</p>
 
-<h2 id="problem">Problem</h2>
+<h1 id="problem">Problem</h1>
 
 <p>The beauty of startups is that you build something for one purpose and customers may use it in all different ways except the one it was intended for. This automation feature was built to manage the lead automation coming from landing pages, but one of our customers imported around 16k leads and ran automation on all of them. This caused an instant outage, where the connections were held up by queries coming from the automation system code. When we investigated the code scheduled to run after every five minutes, the problem became very apparent. Below is the simplified version of that code.</p>
 
@@ -59,13 +78,13 @@
   <li>Truly brute force, not making any use of information already stored in the system to determine which leads and actions need to be performed. Hence too many unnecessary computations.</li>
 </ol>
 
-<h2 id="solution">Solution</h2>
+<h1 id="solution">Solution</h1>
 
 <p>The brute-force nature of the solution provided an obvious hint for the solution i.e. limit unnecessary computations. Considering the major source of unnecessary computations was scanning the leads table, we could also rephrase the problem to “How do we only fetch the leads which have pending stage actions”. Once the problem was stated, the solution was a no-brainer since we can easily filter out the leads for whom all stage actions have been executed.</p>
 
 <p>Couple the above improvement which significantly reduced the leads every time the job is run with improvement over making the job unique and not scheduling it if the is still in progress, the two quick fixes helped us to resolve the outage, but we had to ask how long until the next outage?</p>
 
-<h2 id="challenges-on-the-horizon">Challenges on the Horizon</h2>
+<h1 id="challenges-on-the-horizon">Challenges on the Horizon</h1>
 
 <p>This was one of the core features where performance was not only expected but needed to be guaranteed under specific SLAs (e.g. the next action should be performed within 2 minutes after performing the previous one). Considering how one customer used the system in a way it was not intended to be used, it was only a matter of time before other customers put the system under identical stress. The system had to be rethought and replanned to at least give the first few hundred customers the best experience while we invested in other parts of the app.</p>
 
@@ -83,7 +102,7 @@
   </li>
 </ol>
 
-<h2 id="scaling-upwards">Scaling upwards</h2>
+<h1 id="scaling-upwards">Scaling upwards</h1>
 
 <p>The first two problems pointed out that our system is missing two key pieces, making the automation loop async and applying throttling on automations by the organization. For rest, we also needed to augment <code class="language-plaintext highlighter-rouge">lead_stage_actions</code> table to store some extra information which would help filter out the leads if they are pending on user action or just need to be scheduled at some time in the future. To work around the problems we added,</p>
 
@@ -98,7 +117,7 @@
 
 <p><img src="/assets/img/p1-image-2.svg" alt="Automation Enginer Class Diagram" /></p>
 
-<h2 id="knitting-everything-together">Knitting Everything Together</h2>
+<h1 id="knitting-everything-together">Knitting Everything Together</h1>
 
 <p>Eventually, we replaced the original automation loop with the following flow encapsulating primary automation flow end to end. The dashed lines represent the async/indirect flow where the next step is not executed in the same process. Few highlights of the flow</p>
 
@@ -111,13 +130,12 @@
 
 <p><img src="/assets/img/p1-image-3.svg" alt="Automation Enginer Flow Chart" /></p>
 
-<h2 id="aftermath">Aftermath</h2>
+<h1 id="aftermath">Aftermath</h1>
 
 <p>After the release, we continue monitoring the performance and user activities but nothing major came up, except tweaking limits and small bug fixes here and there. We had some concerns that relying on status to identify pending action may run into concurrency issues but since the application was not supposed to run on a massive scale just yet, we relied on database locks to ensure consistency.</p>
 
     </section>
-    <footer>
-      &copy; to me
-    </footer>
-  </body>
+  </div>
+</body>
+
 </html>
