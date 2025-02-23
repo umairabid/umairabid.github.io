@@ -1,70 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <title>Blog</title>
-  <link rel="stylesheet" href="/assets/css/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,700&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/x-icon" href="/assets/img/logo.svg">
-  <script src="https://kit.fontawesome.com/df7810f55f.js" crossorigin="anonymous"></script>
-  <meta charset="utf-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="HandheldFriendly" content="True" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Website - LLM Style</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="/assets/css/styles.css" rel="stylesheet">
+  <script type="module" src="/assets/js/main.js"></script>
 </head>
-
 <body>
-  <div id="main-blog-container" class="index-page">
-    <sidebar class="main-sidebar">
-      <div class="avatar"><img src="/assets/img/avatar.png" height="160" /></div>
-      <h1>Umair Abid</h1>
-      <p class="social-links">
-        <a href="https://www.linkedin.com/in/umairabid/" target="_blank"><i class="fab fa-linkedin"></i></a>
-        <a href="https://github.com/umairabid" target="_blank"><i class="fab fa-github-square"></i></a>
-        <a href="https://twitter.com/umairabid_" target="_blank"><i class="fab fa-twitter-square"></i></a>
-      </p>
-      <ul class="nav">
-        <li class="nav-home"><a href="/">Home</a></li>
-        <li class="nav-blog nav-current-parent"><a href="/blog">Blog</a></li>
-        <li class="nav-about"><a href="/about-me">About</a></li>
-      </ul>
-    </sidebar>
-    <section class="main-section">
-      <article class="article">
-        <h1 class="article-title">About me</h1>
-<p>I've worked as a software engineer since 2012, driven by my genuine passion for programming and my fascination with
-  computers. I began my journey as a self-taught programmer in a smaller company, fueled by my enthusiasm for the field.
-  Over time, my career evolved, and it gradually transformed into not only a way to follow my passion but also a means
-  to fulfill my broader life purpose – using technology to enhance people's lives.</p>
-<p>In my professional endeavors, I've consistently leaned toward principles and remained unbiased when it comes to tools
-  and technologies. This approach enables me to grasp problems on an abstract level, break them down to their
-  fundamental components, and then solve them using the most suitable tools. This adaptability has been advantageous in
-  roles where I translate business challenges into technical solutions.</p>
-<p>I specialize in and hold a strong interest in the following areas:</p>
-<h3 id="designing-solutions-and-architectures">Designing solutions and architectures</h3>
-<p>One of my strengths and true passions lies in defining entities and their relationships, dissecting intricate issues
-  into smaller components, creating effective communication pathways among various elements, and establishing
-  streamlined workflows.</p>
-<h3 id="problem-solving">Problem-solving</h3>
-<p>While not in the conventional sense of "hacking," I possess a knack for dissecting issues given some context,
-  identifying the root cause, and resolving them regardless of the technology stack. This skill has enabled me to rescue
-  multiple projects from challenging situations and swiftly transition to new technologies and environments.</p>
-<h3 id="writing-beautiful-code">Writing Beautiful Code</h3>
-<p>I'm fueled by curiosity when something isn't functioning as expected, and I derive immense satisfaction when I
-  finally make it work. I am well-versed in producing clean, secure, and maintainable code using languages like
-  Javascript, Ruby, PHP, and C#. My coding practices adhere to industry conventions and best practices. Additionally,
-  I'm proficient in crafting interfaces using HTML and CSS, utilizing various preprocessors.</p>
-<h3 id="collaborative-mindset">Collaborative mindset</h3>
-<p>I firmly believe in the power of collective success, prioritizing it over individual accomplishments. Throughout my
-  career, I've collaborated with diverse global teams, benefiting from their varied cultural perspectives and
-  backgrounds. This experience equips me to contribute effectively to any team, regardless of its location or
-  composition.</p>
-      </article>
-    </section>
+<aside class="sidebar">
+  <div class="logo">
+    <img src="https://media.licdn.com/dms/image/v2/D5603AQGoIJ3KeVgPug/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1709356392607?e=1746057600&v=beta&t=mWQjictIKPizmIRMcWZfj7VJ78CEt9VYJtTqNLSJl4o" />
+    <h1 class="headline">Umair Abid</h1>
   </div>
+</aside>
+<main class="main-panel">
+  <div class="chat-history" id="chat-history"></div>
+  <div class="textbox">
+    <textarea id="user-input" placeholder="Ask me something..."></textarea>
+  </div>
+</main>
 </body>
-
 </html>

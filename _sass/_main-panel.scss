@@ -1,0 +1,28 @@
+.main-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: $main-bg;
+  width: 750px;
+  margin: 0 auto;
+
+
+  .chat-history {
+    flex: 1;
+    padding: $size-unit;
+    overflow-y: auto;
+  }
+
+  .textbox {
+    padding: $size-unit;
+    width: 100%;
+
+    textarea {
+      border: 1px solid #ddd;
+      width: 100%;
+      border-radius: $size-unit;
+      font-size: $size-unit;
+      padding: $size-unit;
+      resize: none;
+    }
+  }
+}

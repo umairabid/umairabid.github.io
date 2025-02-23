@@ -1,6 +1,8 @@
 ---
+# Jekyll needs this front matter to process the file
 ---
 
-@import "base";
-@import "default";
-@import "sidebar";
+@import 'variables';
+@import 'base';
+@import 'sidebar';
+@import 'main-panel';

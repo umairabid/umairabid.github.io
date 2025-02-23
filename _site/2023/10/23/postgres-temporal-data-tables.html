@@ -1,228 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <title>Traveling time with Postgres Range Columns</title>
-  <link rel="stylesheet" href="/assets/css/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,700&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/x-icon" href="/assets/img/logo.svg">
-  <script src="https://kit.fontawesome.com/df7810f55f.js" crossorigin="anonymous"></script>
-  <meta charset="utf-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="HandheldFriendly" content="True" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Website - LLM Style</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="/assets/css/styles.css" rel="stylesheet">
+  <script type="module" src="/assets/js/main.js"></script>
 </head>
-
 <body>
-  <div id="main-blog-container" class="index-page">
-    <sidebar class="main-sidebar">
-      <div class="avatar"><img src="/assets/img/avatar.png" height="160" /></div>
-      <h1>Umair Abid</h1>
-      <p class="social-links">
-        <a href="https://www.linkedin.com/in/umairabid/" target="_blank"><i class="fab fa-linkedin"></i></a>
-        <a href="https://github.com/umairabid" target="_blank"><i class="fab fa-github-square"></i></a>
-        <a href="https://twitter.com/umairabid_" target="_blank"><i class="fab fa-twitter-square"></i></a>
-      </p>
-      <ul class="nav">
-        <li class="nav-home"><a href="/">Home</a></li>
-        <li class="nav-blog nav-current-parent"><a href="/blog">Blog</a></li>
-        <li class="nav-about"><a href="/about-me">About</a></li>
-      </ul>
-    </sidebar>
-    <section class="main-section">
-      <article class="article">
-        <p>In <a href="/2023/09/06/temporal-system-challenges.html">Challenges of Time-Based Systems Without Proper Database Structures</a>, we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will describe how we added that foundation to support temporal use cases. We will start by discussing how we built the foundation using Postgres ranges that could be a potential denominator for any time-based system. The solution might not be general enough but it can provide some good insights for building a foundation for the temporal system.</p>
-
-<h1 id="migrating-first-table">Migrating First Table</h1>
-
-<p>We started by migrating the <code class="language-plaintext highlighter-rouge">state_taxes</code> as it contained fewer rows and had fewer dependencies than other tables. The reason for starting with a relatively simple table was to vet the solution with minimum dependencies and then expand to other tables. The first version of the table structure we came up with was as follows.</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_taxes
-(
-  id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
-  state_id integer NOT NULL,
-  tax_type character varying COLLATE pg_catalog."default" NOT NULL,
-  rate numeric NOT NULL,
-  effective_range daterange NOT NULL,
-  system_range tsrange NOT NULL,
-  CONSTRAINT state_taxes_pkey PRIMARY KEY (id),
-  CONSTRAINT prevent_overlapping_state_taxes EXCLUDE USING gist (
-      system_range WITH &amp;&amp;,
-      state_id WITH =,
-      effective_range WITH &amp;&amp;,
-      tax_type WITH =
-  )
-)
-</code></pre></div></div>
-
-<h1 id="understanding-state-taxes-structure">Understanding State Taxes Structure</h1>
-
-<p>The key and important difference from the previous version is two columns <code class="language-plaintext highlighter-rouge">effective_range</code> and <code class="language-plaintext highlighter-rouge">system_range</code> with the addition of the constraint <code class="language-plaintext highlighter-rouge">prevent_overlapping_state_taxes</code>. Let’s go through each of them and see what value they add</p>
-
-<h2 id="effective-range-column">Effective Range Column</h2>
-
-<p>This column unlocks the ability to create timelines by having a rate for a specific start and end date, eliminating the need for year the column. The clients will add rates only by providing a start date and the backend system will automatically detect the end date for the rate. The benefit of using range columns is that querying becomes easier using powerful <a href="https://www.postgresql.org/docs/9.3/functions-range.html?ref=umairabid.com">Postgres range functions</a>. For example, if a client asks for a rate on a specific effective date we can easily find it by searching a row whose effective range overlaps with the provided effective date.</p>
-
-<h2 id="system-range-column">System Range Column</h2>
-
-<p><code class="language-plaintext highlighter-rouge">system_range</code> helps us solve the shoe store problem discussed in the last article. This column stores the validity of data in terms of system time, also in the form of a range with specific start and end dates. When a rate is added, the system will set the current time at the time of change as the start of the validity range. Later if the rate is invalidated, the system will set the end time as the end of the system range when the change was made. This eliminates any need for maintaining <code class="language-plaintext highlighter-rouge">deleted_at</code> columns. The system range actually removes the concept of soft deletes and replaces it with versioning the data with system validity.</p>
-
-<h2 id="exclude-constraint">Exclude Constraint</h2>
-
-<p>You can think of this constraint as a unique constraint but since ranges are involved and we want to check for overlapping ranges, the exclude constraint was used. Exclude constraint basically doesn’t allow two rows to exist that return true for the provided gist condition. This helps us ensure we only get one valid row for one effective date.</p>
-
-<h1 id="adding-timeline-logic-to-state-taxes">Adding Timeline Logic to State Taxes</h1>
-
-<p>With a solid underlying table structure to support temporal operations next step was to add logic to <code class="language-plaintext highlighter-rouge">StateTaxes</code> model which will ensure the timeline logic of changes as they are added. We defined the following expectations for handling changes</p>
-
-<h2 id="first-change">First Change</h2>
-
-<p>If a rate is added for state tax for the first time for the effective date let’s say <code class="language-plaintext highlighter-rouge">2023-01-01</code> we expected the following record in the table</p>
-
-<p><img src="/assets/img/p3-image-1.png" alt="Temporal Database Design" /></p>
-
-<p>This row tells us that the rate 0.15 is effective from 2023-01-01 till the end of time and it is valid from 2023-10-16 (the time it was added) to the end of time, for state_id=1 and tax_type=income_tax (identified unique tax rate). This statement can be understood by a few queries, let’s ask the system for a rate effective on 2023-05-01</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
-FROM state_taxes 
-  WHERE state_id = 1 AND 
-  tax_type = 'income_tax' AND
-  effective_range @&gt; '2023-05-01'::date
- 
-#=&gt; 0.15
-</code></pre></div></div>
-
-<p>This seems correct since the rate is effective from 2023-01-01 to end of time, let’s ask for the rate before this date\</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
-FROM state_taxes 
-  WHERE state_id = 1 AND 
-  tax_type = 'income_tax' AND
-  effective_range @&gt; '2022-12-31'::date
- 
-#=&gt; null
-</code></pre></div></div>
-
-<p>As expected since the date is before the date the first rate is effective, the query returned nil. Now let’s query for any rates valid in the system time before the date 2023-10-16</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
-FROM state_taxes 
-  WHERE state_id = 1 AND 
-  tax_type = 'income_tax' AND
-  system_range @&gt; '2022-10-16'::timestamp
- 
-#=&gt; nil
-</code></pre></div></div>
-
-<p>This returns nil because as far as the system is concerned no rate existed in the system time for 2023-10-16, this is how it helps in the example of a shoe store by finding rates when transactions occurred in the system.</p>
-
-<h2 id="after-first-change">After First Change</h2>
-
-<p>If the first change is already added the rest of the changes will fall in one or a combination of the following scenarios</p>
-
-<ol>
-  <li>The new change has the same effective date as the effective date (Correction)</li>
-  <li>The new change effective date is before the existing change effective date (Past Change)</li>
-  <li>The new change effective date is after the existing change effecting date (Future Change)</li>
-</ol>
-
-<h2 id="adding-a-correction">Adding a correction</h2>
-
-<p>When a new change has the same effective date as an existing change, we need to invalidate the existing change and replace it with a new one. It is called a correction because the new change replaced the old one. If we correct our first change rate from 0.15 to 0.19 the result will look like something below</p>
-
-<p><img src="/assets/img/p3-image-2.png" alt="Temporal Database Design" /></p>
-
-<p>It shows that we invalidated our first change by adding an end to system_range of the first change and then added the correction with the new rate. Now if only query valid rates effective on or after 2023-01-01 we get 0.19</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
-FROM state_taxes 
-  WHERE state_id = 1 AND 
-  tax_type = 'income_tax' AND
-  lower(effective_range) &gt;= '2023-01-01' AND
-  upper(system_range) is null # only valid rates have system_range null
- 
-#=&gt; 0.19
-</code></pre></div></div>
-
-<h2 id="adding-a-past-change">Adding a Past Change</h2>
-
-<p>When a new change is added whose effective date is before the already existing change, then the new change should automatically assume an end date as well. This makes sure that end result is a consistent timeline where effective ranges don’t overlap. For example, continuing from before, if we add a change for the effective date 2022-12-01 with rate 0.14 then execute the query</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * 
-FROM state_taxes 
-  WHERE state_id = 1 AND 
-  tax_type = 'income_tax' AND
-  upper(system_range) is null
-ORDER BY lower(effective_range)
-</code></pre></div></div>
-
-<p>It will return the following result</p>
-
-<p><img src="/assets/img/p3-image-3.png" alt="Temporal Database Design" /></p>
-
-<h2 id="adding-a-future-change">Adding a Future Change</h2>
-
-<p>When a change is added whose effective date is after the existing change, the existing change needs to have a new end date. So in order to apply the change, we correct the existing change by replacing it with a new end date. Now in our example if we add a rate 0.25 with effective date 2023-02-01 the query in the previous example will return the following result</p>
-
-<p><img src="/assets/img/p3-image-4.png" alt="Temporal Database Design" /></p>
-
-<p>For reference fetching changes including the invalidated ones results in the below</p>
-
-<p><img src="/assets/img/p3-image-5.png" alt="Temporal Database Design" /></p>
-
-<p>You can find the implementation for the rails model <a href="https://gist.github.com/umairabid/54ca1f6ab7a32439554551418847ced5?ref=umairabid.com">here</a> and <a href="https://gist.github.com/umairabid/7fe9619d73e0a17558145b5d4fe6e9fe?ref=umairabid.com">migration</a> here to run examples by yourself.</p>
-
-<h1 id="scaling-beyond-state-tax-table">Scaling beyond State Tax Table</h1>
-
-<p>After completing the implementation for the state tax table, the next task was to assess how this implementation would work when joining tables and how the same implementation could be applied to other tables. We immediately saw that we needed to modify our approach or rethink our table relations.</p>
-
-<h2 id="problem-with-relations">Problem with Relations</h2>
-
-<p>Initially before adding effectivity to state_tax table, the id was an explicit primary key to identifying a unique tax rate, whereas the composite key (state_id, tax_type) served as the implicit primary key. However, with the new structure, the id was no longer the key to identify a tax rate hence won’t work as a foreign key meant to identify a unique tax, and reason why we had to resort to using the composite key to identify taxes.</p>
-
-<p>The nature of the issue can be traced to the fact that before the change each row state_tax was one “tax rate” but after, a row was one “tax rate change”. In other words, after changing the structure the table should also have been renamed to state_tax_changes. To fix the relations we thought about just having a running id in the table to be used as the foreign key in the related tables. Still, the insight that we have fundamentally changed the table prevented us from continuing with the running id hack.</p>
-
-<h2 id="splitting-the-tables">Splitting the Tables</h2>
-
-<p>To resolve the relations as they were defined currently we decided to not replace tables but rather split tables into the main model and its effective attributes. So effective attributes of state_taxes were moved to another table state_tax_changes. The resulting table structures looked something like the ones below</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_taxes
-(
-    id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
-    state_id integer NOT NULL,
-    tax_type character varying COLLATE pg_catalog."default" NOT NULL,
-)
-</code></pre></div></div>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_tax_changes
-(
-    id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
-    state_tax_id integer NOT NUL
-    rate numeric NOT NULL,
-    effective_range daterange NOT NULL,
-    system_range tsrange NOT NULL,
-    CONSTRAINT state_tax_changes_pkey PRIMARY KEY (id),
-    CONSTRAINT prevent_overlapping_state_taxes EXCLUDE USING gist (
-        state_tax_id WITH &amp;&amp;,
-        effective_range WITH &amp;&amp;,
-        tax_type WITH =
-    )
-)
-</code></pre></div></div>
-
-<p>Although from the implementation perspective splitting tables added more complexity due to breaking up existing tables. However, this complexity was only temporary and was expected to subside with the migration of old tables. The benefit of this approach was that it reflected the true nature of our data tables. Previously one state tax had one rate and now one tax had many which was nicely reflected in <code class="language-plaintext highlighter-rouge">state_taxes</code> and <code class="language-plaintext highlighter-rouge">state_tax_changes</code> table.</p>
-
-<h1 id="conclusion">Conclusion</h1>
-
-<p>This project was not easy or smooth by easy means as we had to deal with some issues that were not directly related to not have temporality but as we moved ahead with the system the choice of undertaking a large refactor proved to be correct. It was a great reminder that no matter how good you are design is, if it isn’t compatible with business it can’t get you very far.</p>
-
-
-      </article>
-    </section>
+<aside class="sidebar">
+  <div class="logo">
+    <img src="https://media.licdn.com/dms/image/v2/D5603AQGoIJ3KeVgPug/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1709356392607?e=1746057600&v=beta&t=mWQjictIKPizmIRMcWZfj7VJ78CEt9VYJtTqNLSJl4o" />
+    <h1 class="headline">Umair Abid</h1>
   </div>
+</aside>
+<main class="main-panel">
+  <div class="chat-history" id="chat-history"></div>
+  <div class="textbox">
+    <textarea id="user-input" placeholder="Ask me something..."></textarea>
+  </div>
+</main>
 </body>
-
 </html>
