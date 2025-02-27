@@ -5,3 +5,9 @@ defaults:
       image: true
       sass:
         style: "_sass"
+
+collections:
+  answers:
+    output: true
+    permalink: /answers/:path
+    

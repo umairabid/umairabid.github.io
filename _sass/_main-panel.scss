@@ -10,6 +10,32 @@
     flex: 1;
     padding: $size-unit;
     overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 60px);
+
+    .chat-message {
+      margin: $size-unit / 2 0;
+      max-width: 70%;
+      padding: $size-unit;
+      line-height: $size-unit * 1.4;
+
+      &.user-message {
+        background-color: #007bff;
+        color: white;
+        border-radius: $size-unit $size-unit 0 $size-unit;
+        align-self: flex-end;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      &.bot-message {
+        background-color: #f1f1f1;
+        color: #333;
+        border-radius: $size-unit $size-unit $size-unit 0;
+        align-self: flex-start;
+      }
+    }
   }
 
   .textbox {
@@ -23,6 +49,7 @@
       font-size: $size-unit;
       padding: $size-unit;
       resize: none;
+      font-family: inherit;
     }
   }
 }

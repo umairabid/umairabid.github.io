@@ -1,6 +1,6 @@
 ---
 title: Blog
-layout: default
+layout: posts
 ---
 
 <h1 class="article-title">About me</h1>
@@ -31,3 +31,7 @@ layout: default
   career, I've collaborated with diverse global teams, benefiting from their varied cultural perspectives and
   backgrounds. This experience equips me to contribute effectively to any team, regardless of its location or
   composition.</p>
+
+  {% for poem in site.categories.blog %}
+  {{ poem.output }}
+{% endfor %}

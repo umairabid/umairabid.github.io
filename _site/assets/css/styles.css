@@ -17,6 +17,11 @@ body {
   display: flex;
 }
 
+p {
+  margin: 0;
+  padding: 0;
+}
+
 aside.sidebar {
   width: 18rem;
   background-color: #2c3e50;
@@ -58,6 +63,28 @@ aside.sidebar .logo h1 {
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 60px);
+}
+.main-panel .chat-history .chat-message {
+  margin: 0.5rem 0;
+  max-width: 70%;
+  padding: 1rem;
+  line-height: 1.4rem;
+}
+.main-panel .chat-history .chat-message.user-message {
+  background-color: #007bff;
+  color: white;
+  border-radius: 1rem 1rem 0 1rem;
+  align-self: flex-end;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+.main-panel .chat-history .chat-message.bot-message {
+  background-color: #f1f1f1;
+  color: #333;
+  border-radius: 1rem 1rem 1rem 0;
+  align-self: flex-start;
 }
 .main-panel .textbox {
   padding: 1rem;
@@ -70,6 +97,7 @@ aside.sidebar .logo h1 {
   font-size: 1rem;
   padding: 1rem;
   resize: none;
+  font-family: inherit;
 }
 
 /*# sourceMappingURL=styles.css.map */

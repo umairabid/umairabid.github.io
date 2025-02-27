@@ -1,0 +1,12 @@
+<article class="article">
+  {{ content }}
+</article>
+
+
+{% for poem in site.categories.blog %}
+{{ poem.output }}
+{% endfor %}
+
+{% for post in site.categories.blogs %}
+    {{ post.title }}
+{% endfor %}
