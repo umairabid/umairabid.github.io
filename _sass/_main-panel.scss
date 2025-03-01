@@ -40,7 +40,7 @@
   }
 
   .textbox {
-    padding: $size-unit;
+    padding: $size-unit 0;
     width: 750px;
     margin: auto;
     position: relative;
@@ -49,7 +49,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: $size-unit 0;
+      padding: $size-unit;
 
       .animation-holder {
         padding: $size-unit;
