@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,16 +10,30 @@
   <script src="https://cdn.jsdelivr.net/npm/string-similarity@4.0.4/umd/string-similarity.min.js"></script>
   <script type="module" src="/assets/js/main.js"></script>
 </head>
+
 <body>
-<aside class="sidebar">
-  <div class="logo">
-    <img src="https://media.licdn.com/dms/image/v2/D5603AQGoIJ3KeVgPug/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1709356392607?e=1746057600&v=beta&t=mWQjictIKPizmIRMcWZfj7VJ78CEt9VYJtTqNLSJl4o" />
-    <h1 class="headline">Umair Abid</h1>
-  </div>
-</aside>
-<main class="main-panel">
-  <div class="chat-history" id="chat-history"></div>
-  <div class="textbox"><textarea id="user-input" placeholder="Ask me something..."></textarea></div>
-</main>
+  <aside class="sidebar">
+    <div class="logo">
+      <img
+        src="https://media.licdn.com/dms/image/v2/D5603AQGoIJ3KeVgPug/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1709356392607?e=1746057600&v=beta&t=mWQjictIKPizmIRMcWZfj7VJ78CEt9VYJtTqNLSJl4o" />
+      <h1 class="headline">Umair Abid</h1>
+    </div>
+  </aside>
+  <main class="main-panel">
+    <div class="chat-window" id="chat-window">
+      <div class="chat-history" id="chat-history"></div>
+    </div>
+    <div class="textbox">
+      <div class="typing-indicator hide" id="typing-indicator">
+        <div class="animation-holder">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+      <textarea id="user-input" placeholder="Ask me something..."></textarea>
+    </div>
+  </main>
 </body>
+
 </html>

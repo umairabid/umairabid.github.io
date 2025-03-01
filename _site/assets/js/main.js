@@ -16,8 +16,10 @@ import ChatManager from "./chatManager.js";
 
     initChatManager() {
       const userInput = document.getElementById('user-input');
-      const chatWindow = document.getElementById('chat-history');
-      return new ChatManager(userInput, chatWindow);
+      const chatHistory = document.getElementById('chat-history');
+      const chatWindow = document.getElementById('chat-window');
+      const chatSpinner = document.getElementById('typing-indicator');
+      return new ChatManager(userInput, chatWindow, chatHistory, chatSpinner);
     }
   }
 })();

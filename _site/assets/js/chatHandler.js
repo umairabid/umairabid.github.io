@@ -1,6 +1,7 @@
 export default class ChatHandler {
-  constructor(cWindow) {
+  constructor(cWindow, cHistory) {
     this.cWindow = cWindow;
+    this.cHistory = cHistory;
   }
 
   addUserMessage(message) {
@@ -12,6 +13,9 @@ export default class ChatHandler {
   }
 
   addMessage(message) {
-    this.cWindow.innerHTML += message;
+    this.cHistory.innerHTML += message;
+    setTimeout(() => {
+      this.cWindow.scrollTop = this.cWindow.scrollHeight;
+    })
   }
 }
