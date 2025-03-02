@@ -27,7 +27,11 @@ export default class ChatManager {
       response.then((text) => this.chatHandler.addBotMessage(text));
       this.chatSpinner.classList.toggle('hide');
       this.userInput.disabled = false;
-    }, 3000 )
-    
+      this.userInput.focus();
+    }, this.getRandomNumber(500, 2500))
+  }
+
+  getRandomNumber(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 }

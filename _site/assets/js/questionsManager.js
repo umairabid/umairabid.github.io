@@ -1,24 +1,25 @@
+import questions from "./questionRepository.js";
+
 export default class QuestionsManager {
 
   static TARGET_SIMILARITY = 0.6;
 
   constructor() {
-    this.questions = [
-      {
-        question: 'Tell me about yourself?',
-        answer: '/answers/tell-me-about-yourself'
-      }
-    ];
+
   }
 
   async respondToQuestion(question) {
     const predefinedQuestion = this.findPreDefinedQuestion(question);
     if (predefinedQuestion) {
-      const qPair = this.questions.find((q) => q.question === predefinedQuestion);
-      const answer = qPair.answer;
-      const response = await fetch(answer);
-      const text = await response.text();
-      return text;
+      const qConfig = questions.find((q) => q.question === predefinedQuestion);
+      if (qConfig.type === 'url') {
+        const answer = qConfig.answer;
+        const response = await fetch(answer);
+        return await response.text();
+      } else {
+        const answer = qConfig.answer;
+        return Promise.resolve(answer);
+      }
     } else {
       return Promise.resolve("I'm sorry, I don't have an answer for that.");
     }
@@ -27,7 +28,7 @@ export default class QuestionsManager {
   findPreDefinedQuestion(query) {
     let closestQuestion = "";
     let highestSimilarity = 0;
-    this.questions.forEach(q => {
+    questions.forEach(q => {
       const question = q.question;
       const similarity = stringSimilarity.compareTwoStrings(
         query.toLowerCase(),
@@ -38,7 +39,6 @@ export default class QuestionsManager {
         closestQuestion = question;
       }
     })
-    console.log(highestSimilarity);
     if (highestSimilarity >= QuestionsManager.TARGET_SIMILARITY) {
       return closestQuestion
     }

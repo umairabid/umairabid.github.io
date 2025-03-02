@@ -6,4 +6,4 @@ technologies: [ruby, rails, javascript]
 ---
 
 
-Sure thing I have been developing web applications since 2011. After working through several startup launchpads for initial years of my career, I opted to work directly with startups to help them scale. In my career I have helped
+Sure thing I have been developing web applications since 2011. After working through several startup launchpads for initial years of my career, I opted to work directly with startups to help them scale. I have helped companies build features that set them apart from **competition**
