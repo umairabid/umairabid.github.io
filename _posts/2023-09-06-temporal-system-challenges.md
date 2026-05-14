@@ -1,6 +1,5 @@
 ---
-title:  Challenges of Time-Based Systems Without Proper Database Structures
-layout: default
+title: Challenges of Time-Based Systems Without Proper Database Structures
 ---
 
 When we store information in our database, we normally store it without a time dimension even if it is only valid for a specific period of time. For example, people move around all the time, but most apps ask for your current address and rely on you to change it whenever you move. This works because most applications have no use case to be aware of your address history and only need your current address.

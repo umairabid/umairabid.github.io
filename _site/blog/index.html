@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog — Umair Abid</title>
+  <meta name="description" content="Posts on backend engineering, Rails, databases, and the systems around them.">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="/assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav">
+      <a href="/" class="site-title">Umair Abid</a>
+      <span class="nav-links">
+        <a href="/">Home</a>
+        <a href="/about/">About</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://github.com/umairabid" rel="me">GitHub</a>
+        <a href="https://www.linkedin.com/in/umairabid" rel="me">LinkedIn</a>
+      </span>
+    </nav>
+  </header>
+  <main class="content">
+    <section class="blog-index">
+  <h1>Blog</h1>
+  <p class="lede">Notes on backend engineering — mostly Rails, databases, and the systems around them.</p>
+
+  <ul class="post-list">
+    
+      <li class="post-list-item">
+        <h2 class="post-list-title">
+          <a href="/blog/2026/01/15/change-logs-system/">Adding a Change-Log System Without Breaking the One You Have</a>
+        </h2>
+        <p class="post-meta">
+          <time datetime="2026-01-15T00:00:00-08:00">January 15, 2026</time>
+        </p>
+        
+          <p class="post-list-excerpt">Building an audit trail into a live product is mostly about what *not* to break — observability, latency, context, and a database that can scale alone.</p>
+        
+      </li>
+    
+      <li class="post-list-item">
+        <h2 class="post-list-title">
+          <a href="/blog/2025/05/08/invoice-sync-pipeline/">Reshaping an Invoice-Sync Pipeline Without a Rewrite</a>
+        </h2>
+        <p class="post-meta">
+          <time datetime="2025-05-08T00:00:00-07:00">May 8, 2025</time>
+        </p>
+        
+          <p class="post-list-excerpt">A 1:1 sync framework had to absorb a 1:N invoice workflow with prepayments, locking, and idempotent retries — without forking the platform.</p>
+        
+      </li>
+    
+      <li class="post-list-item">
+        <h2 class="post-list-title">
+          <a href="/blog/2023/10/23/postgres-temporal-data-tables/">Traveling time with Postgres Range Columns</a>
+        </h2>
+        <p class="post-meta">
+          <time datetime="2023-10-23T00:00:00-07:00">October 23, 2023</time>
+        </p>
+        
+          <p class="post-list-excerpt">In Challenges of Time-Based Systems Without Proper Database Structures, we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will desc...</p>
+        
+      </li>
+    
+      <li class="post-list-item">
+        <h2 class="post-list-title">
+          <a href="/blog/2023/09/06/temporal-system-challenges/">Challenges of Time-Based Systems Without Proper Database Structures</a>
+        </h2>
+        <p class="post-meta">
+          <time datetime="2023-09-06T00:00:00-07:00">September 6, 2023</time>
+        </p>
+        
+          <p class="post-list-excerpt">When we store information in our database, we normally store it without a time dimension even if it is only valid for a specific period of time. For example, people move around all the time, but most apps ask for your...</p>
+        
+      </li>
+    
+      <li class="post-list-item">
+        <h2 class="post-list-title">
+          <a href="/blog/2023/08/07/automation-engine-refactor-for-performance-and-maintainability/">Automation Engine Refactor for Performance and Maintainability</a>
+        </h2>
+        <p class="post-meta">
+          <time datetime="2023-08-07T00:00:00-07:00">August 7, 2023</time>
+        </p>
+        
+          <p class="post-list-excerpt">Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day agai...</p>
+        
+      </li>
+    
+  </ul>
+</section>
+
+  </main>
+  <footer class="site-footer">
+    <p>© 2026 Umair Abid</p>
+  </footer>
+</body>
+</html>

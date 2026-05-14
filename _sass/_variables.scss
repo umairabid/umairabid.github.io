@@ -1,10 +1,17 @@
 // Colors
-$sidebar-text: #ecf0f1;
-$accent-blue: #2c3e50;
-$main-bg: #ffffff;
-$textbox-bg: #f4f4f9;
-$base-size: 16px;
-$size-unit: 1rem;
+$text:         #1f2328;
+$muted:        #59636e;
+$border:       #d1d9e0;
+$bg:           #ffffff;
+$code-bg:      #f6f8fa;
+$link:         #0969da;
+$link-hover:   #0550ae;
+
+// Layout
+$content-max:  720px;
+$base-size:    16px;
+$size-unit:    1rem;
 
 // Fonts
-$ubuntu-font: 'Ubuntu', sans-serif;
+$sans:         'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+$mono:         ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;

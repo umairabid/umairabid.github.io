@@ -1,6 +1,5 @@
 ---
-title:  Automation Engine Refactor for Performance and Maintainability
-layout: default
+title: Automation Engine Refactor for Performance and Maintainability
 ---
 
 Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day again, at least for the exact root cause.

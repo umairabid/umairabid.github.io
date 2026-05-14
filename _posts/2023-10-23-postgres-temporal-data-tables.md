@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Traveling time with Postgres Range Columns
 ---
 

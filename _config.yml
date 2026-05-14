@@ -1,13 +1,18 @@
+title: Umair Abid
+description: Backend engineer. Notes, projects, and the occasional write-up.
+url: https://umairabid.com
+
+permalink: /blog/:year/:month/:day/:title/
+
 defaults:
   - scope:
-      path: "assets/img"
+      path: ""
+      type: posts
     values:
-      image: true
-      sass:
-        style: "_sass"
+      layout: post
 
-collections:
-  answers:
-    output: true
-    permalink: /answers/:path
-    
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - vendor
