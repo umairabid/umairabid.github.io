@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://umairabid.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://umairabid.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2026-05-15T13:18:56-07:00</updated><id>https://umairabid.com/feed.xml</id><title type="html">Umair Abid</title><subtitle>Notes on building production software — Ruby on Rails, databases, sync pipelines, and the systems around them. By Umair Abid, a software engineer with ~10 years of backend-leaning full-stack experience.</subtitle><author><name>Umair Abid</name></author><entry><title type="html">Adding a Change-Log System Without Breaking the One You Have</title><link href="https://umairabid.com/blog/2026/01/15/change-logs-system/" rel="alternate" type="text/html" title="Adding a Change-Log System Without Breaking the One You Have" /><published>2026-01-15T00:00:00-08:00</published><updated>2026-01-15T00:00:00-08:00</updated><id>https://umairabid.com/blog/2026/01/15/change-logs-system</id><content type="html" xml:base="https://umairabid.com/blog/2026/01/15/change-logs-system/"><![CDATA[<p>Customers wanted to know who did what, and when, and they wanted to
+know it without having to ask us. Specifically: was that change made
+by a human, or by automation? When two stakeholders disagreed, the
+default move had become to ask engineering to dig through logs. Not
+sustainable.</p>
+
+<p>The ask sounded simple — “log changes to objects” — but the
+constraint that made it interesting was that we were adding this to
+a system that was already running. The audit path had to do its job
+without breaking the path being audited.</p>
+
+<h1 id="the-shape-of-the-problem">The shape of the problem</h1>
+
+<p>What we actually needed was:</p>
+
+<ul>
+  <li>A record per change, with <strong>what</strong> changed, on <strong>which object</strong>,
+by <strong>which actor</strong>.</li>
+  <li>The ability to ask “show me everything that happened to this
+object” — quickly, and across a lot of history.</li>
+  <li>Zero impact on the latency of the operations being audited.</li>
+  <li>A failure in the audit path that does <em>not</em> leak into the
+operation it’s auditing.</li>
+</ul>
+
+<p>The closer we got to that list, the more it looked like a side
+system that happened to share a database key with the main app —
+not a feature inside it.</p>
+
+<h1 id="capturing-changes-the-right-way">Capturing changes the right way</h1>
+
+<p>The codebase had been moving toward a command pattern: each business
+operation fulfilled by a small object that owned its context. That
+turned out to be the lever we needed.</p>
+
+<p>We wrote a concern that any command could mix in, and the concern
+took care of the boring parts:</p>
+
+<ul>
+  <li>Snapshot the model before the mutation, snapshot it again after.
+Diff. That’s the “what changed.”</li>
+  <li>Pull the current actor and the current user out of context.
+These are not always the same person.</li>
+  <li>Build a payload — either from the active record directly, or via
+an adapter for cases where the change spanned multiple models or
+lived deeper than a single object.</li>
+  <li>Schedule a background job to persist the change-log entry.</li>
+  <li>Enrich the payload after the fact: turn <code class="language-plaintext highlighter-rouge">user_id: 7</code> into
+<code class="language-plaintext highlighter-rouge">user: "My Name"</code> so anyone reading the log later doesn’t need
+another query to make sense of it.</li>
+</ul>
+
+<p>The concern existed so commands stayed readable. The thing a command
+<em>looks</em> like, in code, is the business operation — not the
+bookkeeping.</p>
+
+<h2 id="actor-vs-user-the-distinction-that-matters">Actor vs. user (the distinction that matters)</h2>
+
+<p>The single most important thing the change-log captured wasn’t
+<em>what</em> changed. It was <strong>who did it</strong>.</p>
+
+<p>There is a difference between the user whose data was affected and
+the actor who performed the change. For self-service flows they’re
+the same. For impersonation, API tokens, and automation, they are
+not — and the whole reason customers wanted the audit trail was to
+tell those cases apart.</p>
+
+<p>If we’d modeled this as a single <code class="language-plaintext highlighter-rouge">user_id</code>, we’d have shipped a
+product that couldn’t answer the question it was built for. The
+moment we got that distinction right in the data model, the rest
+got noticeably easier.</p>
+
+<h1 id="the-constraints-that-shaped-the-architecture">The constraints that shaped the architecture</h1>
+
+<p>Three things forced most of the design:</p>
+
+<p><strong>Operations were already near their SLA.</strong> A bunch of the
+operations we wanted to audit had p95 latencies that didn’t leave
+us room to do extra synchronous work. That ruled out writing the
+change log inline. So: every persist goes through a background
+job. The command captures, the worker stores.</p>
+
+<p><strong>An audit failure must not become an operation failure.</strong>
+“Recording that you did the thing” cannot break “doing the thing.”
+That meant strict isolation: the change-log worker has its own
+queue, its own dashboards, its own alerts. If it falls over,
+nothing in the user-facing path notices.</p>
+
+<p><strong>Operations performed in the background lose their user
+context.</strong> Workers don’t have a session attached. We had to make
+peace with the fact that for some backend-only operations, the
+actor is going to be a system default rather than a real person.
+Pretending otherwise would have meant lying in the audit log.</p>
+
+<h1 id="why-dynamodb">Why DynamoDB</h1>
+
+<p>This was the most contested decision and the one I’m most sure
+about in hindsight.</p>
+
+<p>The shape of the queries was:</p>
+
+<ul>
+  <li>“Everything for object X, newest first.”</li>
+  <li>Append-heavy, read-rarely.</li>
+  <li>Going to grow forever.</li>
+</ul>
+
+<p>The shape we did <em>not</em> need was joins. A change-log entry doesn’t
+join to anything; the payload is denormalized at write time, on
+purpose, so that years later we don’t accidentally show stale
+context because some related record got renamed.</p>
+
+<p>That’s a fairly precise fit for a key-value store with sortable
+range keys, and a fairly bad fit for the main relational database
+that was already under load from the rest of the product. Putting
+this in Dynamo meant the audit table could grow without competing
+for resources with the primary database. It cost us some
+infrastructure complexity. It bought us the ability to forget about
+the change-log table when we were tuning anything else.</p>
+
+<h1 id="legacy-paths-got-a-wrapper">Legacy paths got a wrapper</h1>
+
+<p>Most of the API had moved to the command pattern, but a chunk of
+the legacy API hadn’t. We found that out later than we’d have liked.</p>
+
+<p>Rewriting the legacy API to use commands was a separate, larger
+project that wasn’t going to ship in time for this one. So we built
+a wrapper: the legacy API hands an action and a context to it, the
+wrapper builds an object that walks and talks like a command, mixes
+in the same concern, and calls the same log function.</p>
+
+<p>It’s a shim. It will get deleted when the underlying API gets
+modernized. Until then it means there is exactly one path that
+writes change-log entries, which is the property worth protecting.</p>
+
+<h1 id="rolling-it-out-without-making-any-noise">Rolling it out without making any noise</h1>
+
+<p>We turned the change log on one action at a time, behind a flag.
+Each action’s worker had its own dashboard. We’d flip the flag,
+watch the queue depth and error rate for a few hours, then move on
+to the next action. If something looked off, the flag came back
+off and the operation went back to behaving exactly as it always
+had.</p>
+
+<p>By the end of the rollout the audit trail was complete, and no
+customer had noticed anything had changed — which, for the audit
+log, is the highest compliment.</p>
+
+<h1 id="what-id-take-to-the-next-one">What I’d take to the next one</h1>
+
+<p>A few things that I think generalize:</p>
+
+<ul>
+  <li><strong>Move side-system writes off the user request path.</strong> A
+background job, with its own queue and its own observability,
+buys you both performance headroom and isolation.</li>
+  <li><strong>Pick the data model for the actual query shape.</strong> A growing,
+append-heavy, no-joins workload does not belong on your main
+relational DB just because that’s where everything else lives.</li>
+  <li><strong>Separate actor from user, in the data, on day one.</strong> The
+difference between “who is this for” and “who did this” is the
+difference between an audit log that answers questions and one
+that creates them.</li>
+  <li><strong>Wrap, don’t rewrite, when you have to ship.</strong> A focused shim
+around legacy code is allowed to exist if it preserves a single
+canonical write path. Just be honest about it being a shim.</li>
+</ul>]]></content><author><name>Umair Abid</name></author><summary type="html"><![CDATA[Building an audit trail into a live product is mostly about what *not* to break — observability, latency, context, and a database that can scale alone.]]></summary></entry><entry><title type="html">Reshaping an Invoice-Sync Pipeline Without a Rewrite</title><link href="https://umairabid.com/blog/2025/05/08/invoice-sync-pipeline/" rel="alternate" type="text/html" title="Reshaping an Invoice-Sync Pipeline Without a Rewrite" /><published>2025-05-08T00:00:00-07:00</published><updated>2025-05-08T00:00:00-07:00</updated><id>https://umairabid.com/blog/2025/05/08/invoice-sync-pipeline</id><content type="html" xml:base="https://umairabid.com/blog/2025/05/08/invoice-sync-pipeline/"><![CDATA[<p>We had a working sync framework. The shape was simple: one local
+entity, one remote entity, push changes across when they diverged. It
+served us well for years. Then the product team showed up with a new
+invoicing workflow that did not fit that shape at all.</p>
+
+<p>The new flow was:</p>
+
+<ul>
+  <li>Customers create quotes (and a separate thing we ended up calling
+“MR quotes”).</li>
+  <li>Customers can accept prepayments against those quotes.</li>
+  <li>Quotes get synced downstream as the canonical record.</li>
+  <li>As services are rendered, line items get posted against the quote.</li>
+  <li>Those charges deduct from the prepaid balance.</li>
+  <li>Once services are complete, a final invoice is generated and sent.</li>
+</ul>
+
+<p>A single local quote could end up touching multiple remote
+entities, in a specific order, sometimes weeks apart. That’s a 1:N
+sync problem, and our framework only knew how to do 1:1.</p>
+
+<p>The lazy option was to write parallel sync logic <em>next to</em> the
+framework. Build a second pipeline for invoices and let the original
+keep doing its thing. That would have worked for about six months and
+then we’d have two pipelines slowly diverging in subtle ways. So we
+decided to stretch the framework instead.</p>
+
+<h1 id="what-got-built-first-turned-out-to-be-the-easy-part">What got built first turned out to be the easy part</h1>
+
+<p>The visible work — adding the new entities, wiring up the prepayment
+flow, making sure each line item posted to the right remote object —
+was the part we estimated up front. It went roughly as planned.</p>
+
+<p>The interesting work was everything we found <em>after</em> the first
+version was on staging.</p>
+
+<h2 id="async-jobs-failing-randomly-creating-duplicates">Async jobs failing randomly, creating duplicates</h2>
+
+<p>The first thing the QA cycle turned up was that some sync jobs were
+silently failing and then re-running, and the re-run was sometimes
+creating a second copy of a charge downstream. Not always. Just often
+enough to be terrifying.</p>
+
+<p>We considered a few things:</p>
+
+<ul>
+  <li><strong>Exponential backoff with sleeps.</strong> Tempting, but our workers are
+not infinite. A backed-off sleep is a worker you can’t use for
+anything else, and a queue that gets choked by retries during an
+outage is worse than the outage.</li>
+  <li><strong>Splitting each sync job into smaller jobs.</strong> Cleaner in theory,
+more correct under failure. The amount of refactoring to get there
+was not reasonable given what else was on the roadmap.</li>
+  <li><strong>Making the jobs idempotent.</strong> Pick a stable external key, check
+before you write, and treat a re-run as a no-op if the work has
+already landed. Cheap to implement, and “this can run twice
+without consequences” is a property worth having for its own sake.</li>
+</ul>
+
+<p>We went with idempotent + retries. The duplicate-charge bug
+disappeared. More importantly, the next two async bugs we found also
+disappeared on their own, because we’d already made the operations
+safe to repeat.</p>
+
+<h2 id="decimal-places-that-didnt-agree-with-the-accounting-system">Decimal places that didn’t agree with the accounting system</h2>
+
+<p>Some invoices were off by a cent or two. Sometimes more. The cause
+turned out to be the price calculator: we were storing prices as
+floats with effectively unlimited precision and rounding at the very
+end. The downstream accounting system rounded at every line.</p>
+
+<p>We branched the calculator behind a feature flag — old behavior for
+existing data, fixed behavior for new — and slowly moved customers
+across. Now: every monetary calculation happens in the minimum
+currency unit (cents), and rounding happens at the same boundary it
+happens at downstream. There is no graceful way to retrofit this
+into a system that was happily doing float math in production, so
+the feature flag earned its keep.</p>
+
+<h2 id="silent-failures-when-the-posting-window-closed">Silent failures when the posting window closed</h2>
+
+<p>Some charges weren’t posting at all, and we didn’t notice for days,
+because the failure was silent: the downstream system had a
+“posting window” (essentially a billing period), and once a window
+closed, anything submitted against it was rejected without a useful
+error.</p>
+
+<p>The fix was partly observability — alert on the rejected-write
+shape so we’d see it within minutes — and partly workflow:
+detect the closed-window state before sending and route those
+charges into a different reconciliation path.</p>
+
+<h1 id="two-design-decisions-that-paid-off">Two design decisions that paid off</h1>
+
+<p>A couple of choices, made early enough to matter, kept the system
+from collapsing under the weight of the new flow:</p>
+
+<p><strong>Prepayment as its own type.</strong> The shortcut was to add a
+<code class="language-plaintext highlighter-rouge">prepayment_percentage</code> column to the existing invoice model and
+move on. We took the slower route: prepayment got its own
+type. It cost some brevity at the model level, but every downstream
+consumer — the sync, the locking, the state machine, reporting —
+could now tell at a glance what it was looking at. There was
+no “is this <em>really</em> a prepayment, or just an invoice with a
+percentage set?” branch in any code path.</p>
+
+<p><strong>A real state machine instead of boolean flags.</strong> Locking an
+invoice once it had been sent downstream started life as a single
+boolean column. By the time we were done, the lifecycle had at
+least five states with constraints on which transitions were
+allowed. Replacing the boolean with an explicit state machine made
+the sync logic — “sync this thing if it’s in state X, ignore it if
+it’s in state Y, queue a follow-up if it’s in state Z” — fall out
+of the model rather than being scattered across the codebase.</p>
+
+<h1 id="stretching-the-framework-instead-of-forking-it">Stretching the framework instead of forking it</h1>
+
+<p>The biggest architectural decision was the framework one. We taught
+the existing sync framework to support 1:N relationships rather than
+writing a second pipeline.</p>
+
+<p>The reason wasn’t elegance. It was risk. A second pipeline meant a
+second place to monitor, a second place where retries could go
+wrong, and a second team mental model to keep loaded. Stretching the
+framework was more work up front and more careful work — but every
+existing capability (bulk operations, retry behavior, observability
+hooks) came along with it for free.</p>
+
+<p>If I had to summarize the whole project in one sentence: most of the
+real work was the work we discovered after the happy path was
+already running, and the early architectural choices were what
+determined whether discovering it cost us a week or a quarter.</p>]]></content><author><name>Umair Abid</name></author><summary type="html"><![CDATA[A 1:1 sync framework had to absorb a 1:N invoice workflow with prepayments, locking, and idempotent retries — without forking the platform.]]></summary></entry><entry><title type="html">Traveling time with Postgres Range Columns</title><link href="https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/" rel="alternate" type="text/html" title="Traveling time with Postgres Range Columns" /><published>2023-10-23T00:00:00-07:00</published><updated>2023-10-23T00:00:00-07:00</updated><id>https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables</id><content type="html" xml:base="https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/"><![CDATA[<p>In <a href="/2023/09/06/temporal-system-challenges.html">Challenges of Time-Based Systems Without Proper Database Structures</a>, we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will describe how we added that foundation to support temporal use cases. We will start by discussing how we built the foundation using Postgres ranges that could be a potential denominator for any time-based system. The solution might not be general enough but it can provide some good insights for building a foundation for the temporal system.</p>
+
+<h1 id="migrating-first-table">Migrating First Table</h1>
+
+<p>We started by migrating the <code class="language-plaintext highlighter-rouge">state_taxes</code> as it contained fewer rows and had fewer dependencies than other tables. The reason for starting with a relatively simple table was to vet the solution with minimum dependencies and then expand to other tables. The first version of the table structure we came up with was as follows.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_taxes
+(
+  id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
+  state_id integer NOT NULL,
+  tax_type character varying COLLATE pg_catalog."default" NOT NULL,
+  rate numeric NOT NULL,
+  effective_range daterange NOT NULL,
+  system_range tsrange NOT NULL,
+  CONSTRAINT state_taxes_pkey PRIMARY KEY (id),
+  CONSTRAINT prevent_overlapping_state_taxes EXCLUDE USING gist (
+      system_range WITH &amp;&amp;,
+      state_id WITH =,
+      effective_range WITH &amp;&amp;,
+      tax_type WITH =
+  )
+)
+</code></pre></div></div>
+
+<h1 id="understanding-state-taxes-structure">Understanding State Taxes Structure</h1>
+
+<p>The key and important difference from the previous version is two columns <code class="language-plaintext highlighter-rouge">effective_range</code> and <code class="language-plaintext highlighter-rouge">system_range</code> with the addition of the constraint <code class="language-plaintext highlighter-rouge">prevent_overlapping_state_taxes</code>. Let’s go through each of them and see what value they add</p>
+
+<h2 id="effective-range-column">Effective Range Column</h2>
+
+<p>This column unlocks the ability to create timelines by having a rate for a specific start and end date, eliminating the need for year the column. The clients will add rates only by providing a start date and the backend system will automatically detect the end date for the rate. The benefit of using range columns is that querying becomes easier using powerful <a href="https://www.postgresql.org/docs/9.3/functions-range.html?ref=umairabid.com">Postgres range functions</a>. For example, if a client asks for a rate on a specific effective date we can easily find it by searching a row whose effective range overlaps with the provided effective date.</p>
+
+<h2 id="system-range-column">System Range Column</h2>
+
+<p><code class="language-plaintext highlighter-rouge">system_range</code> helps us solve the shoe store problem discussed in the last article. This column stores the validity of data in terms of system time, also in the form of a range with specific start and end dates. When a rate is added, the system will set the current time at the time of change as the start of the validity range. Later if the rate is invalidated, the system will set the end time as the end of the system range when the change was made. This eliminates any need for maintaining <code class="language-plaintext highlighter-rouge">deleted_at</code> columns. The system range actually removes the concept of soft deletes and replaces it with versioning the data with system validity.</p>
+
+<h2 id="exclude-constraint">Exclude Constraint</h2>
+
+<p>You can think of this constraint as a unique constraint but since ranges are involved and we want to check for overlapping ranges, the exclude constraint was used. Exclude constraint basically doesn’t allow two rows to exist that return true for the provided gist condition. This helps us ensure we only get one valid row for one effective date.</p>
+
+<h1 id="adding-timeline-logic-to-state-taxes">Adding Timeline Logic to State Taxes</h1>
+
+<p>With a solid underlying table structure to support temporal operations next step was to add logic to <code class="language-plaintext highlighter-rouge">StateTaxes</code> model which will ensure the timeline logic of changes as they are added. We defined the following expectations for handling changes</p>
+
+<h2 id="first-change">First Change</h2>
+
+<p>If a rate is added for state tax for the first time for the effective date let’s say <code class="language-plaintext highlighter-rouge">2023-01-01</code> we expected the following record in the table</p>
+
+<p><img src="/assets/img/p3-image-1.png" alt="Temporal Database Design" /></p>
+
+<p>This row tells us that the rate 0.15 is effective from 2023-01-01 till the end of time and it is valid from 2023-10-16 (the time it was added) to the end of time, for state_id=1 and tax_type=income_tax (identified unique tax rate). This statement can be understood by a few queries, let’s ask the system for a rate effective on 2023-05-01</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
+FROM state_taxes 
+  WHERE state_id = 1 AND 
+  tax_type = 'income_tax' AND
+  effective_range @&gt; '2023-05-01'::date
+ 
+#=&gt; 0.15
+</code></pre></div></div>
+
+<p>This seems correct since the rate is effective from 2023-01-01 to end of time, let’s ask for the rate before this date\</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
+FROM state_taxes 
+  WHERE state_id = 1 AND 
+  tax_type = 'income_tax' AND
+  effective_range @&gt; '2022-12-31'::date
+ 
+#=&gt; null
+</code></pre></div></div>
+
+<p>As expected since the date is before the date the first rate is effective, the query returned nil. Now let’s query for any rates valid in the system time before the date 2023-10-16</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
+FROM state_taxes 
+  WHERE state_id = 1 AND 
+  tax_type = 'income_tax' AND
+  system_range @&gt; '2022-10-16'::timestamp
+ 
+#=&gt; nil
+</code></pre></div></div>
+
+<p>This returns nil because as far as the system is concerned no rate existed in the system time for 2023-10-16, this is how it helps in the example of a shoe store by finding rates when transactions occurred in the system.</p>
+
+<h2 id="after-first-change">After First Change</h2>
+
+<p>If the first change is already added the rest of the changes will fall in one or a combination of the following scenarios</p>
+
+<ol>
+  <li>The new change has the same effective date as the effective date (Correction)</li>
+  <li>The new change effective date is before the existing change effective date (Past Change)</li>
+  <li>The new change effective date is after the existing change effecting date (Future Change)</li>
+</ol>
+
+<h2 id="adding-a-correction">Adding a correction</h2>
+
+<p>When a new change has the same effective date as an existing change, we need to invalidate the existing change and replace it with a new one. It is called a correction because the new change replaced the old one. If we correct our first change rate from 0.15 to 0.19 the result will look like something below</p>
+
+<p><img src="/assets/img/p3-image-2.png" alt="Temporal Database Design" /></p>
+
+<p>It shows that we invalidated our first change by adding an end to system_range of the first change and then added the correction with the new rate. Now if only query valid rates effective on or after 2023-01-01 we get 0.19</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT rate 
+FROM state_taxes 
+  WHERE state_id = 1 AND 
+  tax_type = 'income_tax' AND
+  lower(effective_range) &gt;= '2023-01-01' AND
+  upper(system_range) is null # only valid rates have system_range null
+ 
+#=&gt; 0.19
+</code></pre></div></div>
+
+<h2 id="adding-a-past-change">Adding a Past Change</h2>
+
+<p>When a new change is added whose effective date is before the already existing change, then the new change should automatically assume an end date as well. This makes sure that end result is a consistent timeline where effective ranges don’t overlap. For example, continuing from before, if we add a change for the effective date 2022-12-01 with rate 0.14 then execute the query</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * 
+FROM state_taxes 
+  WHERE state_id = 1 AND 
+  tax_type = 'income_tax' AND
+  upper(system_range) is null
+ORDER BY lower(effective_range)
+</code></pre></div></div>
+
+<p>It will return the following result</p>
+
+<p><img src="/assets/img/p3-image-3.png" alt="Temporal Database Design" /></p>
+
+<h2 id="adding-a-future-change">Adding a Future Change</h2>
+
+<p>When a change is added whose effective date is after the existing change, the existing change needs to have a new end date. So in order to apply the change, we correct the existing change by replacing it with a new end date. Now in our example if we add a rate 0.25 with effective date 2023-02-01 the query in the previous example will return the following result</p>
+
+<p><img src="/assets/img/p3-image-4.png" alt="Temporal Database Design" /></p>
+
+<p>For reference fetching changes including the invalidated ones results in the below</p>
+
+<p><img src="/assets/img/p3-image-5.png" alt="Temporal Database Design" /></p>
+
+<p>You can find the implementation for the rails model <a href="https://gist.github.com/umairabid/54ca1f6ab7a32439554551418847ced5?ref=umairabid.com">here</a> and <a href="https://gist.github.com/umairabid/7fe9619d73e0a17558145b5d4fe6e9fe?ref=umairabid.com">migration</a> here to run examples by yourself.</p>
+
+<h1 id="scaling-beyond-state-tax-table">Scaling beyond State Tax Table</h1>
+
+<p>After completing the implementation for the state tax table, the next task was to assess how this implementation would work when joining tables and how the same implementation could be applied to other tables. We immediately saw that we needed to modify our approach or rethink our table relations.</p>
+
+<h2 id="problem-with-relations">Problem with Relations</h2>
+
+<p>Initially before adding effectivity to state_tax table, the id was an explicit primary key to identifying a unique tax rate, whereas the composite key (state_id, tax_type) served as the implicit primary key. However, with the new structure, the id was no longer the key to identify a tax rate hence won’t work as a foreign key meant to identify a unique tax, and reason why we had to resort to using the composite key to identify taxes.</p>
+
+<p>The nature of the issue can be traced to the fact that before the change each row state_tax was one “tax rate” but after, a row was one “tax rate change”. In other words, after changing the structure the table should also have been renamed to state_tax_changes. To fix the relations we thought about just having a running id in the table to be used as the foreign key in the related tables. Still, the insight that we have fundamentally changed the table prevented us from continuing with the running id hack.</p>
+
+<h2 id="splitting-the-tables">Splitting the Tables</h2>
+
+<p>To resolve the relations as they were defined currently we decided to not replace tables but rather split tables into the main model and its effective attributes. So effective attributes of state_taxes were moved to another table state_tax_changes. The resulting table structures looked something like the ones below</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_taxes
+(
+    id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
+    state_id integer NOT NULL,
+    tax_type character varying COLLATE pg_catalog."default" NOT NULL,
+)
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS public.state_tax_changes
+(
+    id bigint NOT NULL DEFAULT nextval('state_taxes_id_seq'::regclass),
+    state_tax_id integer NOT NUL
+    rate numeric NOT NULL,
+    effective_range daterange NOT NULL,
+    system_range tsrange NOT NULL,
+    CONSTRAINT state_tax_changes_pkey PRIMARY KEY (id),
+    CONSTRAINT prevent_overlapping_state_taxes EXCLUDE USING gist (
+        state_tax_id WITH &amp;&amp;,
+        effective_range WITH &amp;&amp;,
+        tax_type WITH =
+    )
+)
+</code></pre></div></div>
+
+<p>Although from the implementation perspective splitting tables added more complexity due to breaking up existing tables. However, this complexity was only temporary and was expected to subside with the migration of old tables. The benefit of this approach was that it reflected the true nature of our data tables. Previously one state tax had one rate and now one tax had many which was nicely reflected in <code class="language-plaintext highlighter-rouge">state_taxes</code> and <code class="language-plaintext highlighter-rouge">state_tax_changes</code> table.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>This project was not easy or smooth by easy means as we had to deal with some issues that were not directly related to not have temporality but as we moved ahead with the system the choice of undertaking a large refactor proved to be correct. It was a great reminder that no matter how good you are design is, if it isn’t compatible with business it can’t get you very far.</p>]]></content><author><name>Umair Abid</name></author><summary type="html"><![CDATA[Using Postgres tstzrange columns and exclusion constraints to model temporal data — effective dates, history, and as-of queries — without bolting it on later.]]></summary></entry><entry><title type="html">Challenges of Time-Based Systems Without Proper Database Structures</title><link href="https://umairabid.com/blog/2023/09/06/temporal-system-challenges/" rel="alternate" type="text/html" title="Challenges of Time-Based Systems Without Proper Database Structures" /><published>2023-09-06T00:00:00-07:00</published><updated>2023-09-06T00:00:00-07:00</updated><id>https://umairabid.com/blog/2023/09/06/temporal-system-challenges</id><content type="html" xml:base="https://umairabid.com/blog/2023/09/06/temporal-system-challenges/"><![CDATA[<p>When we store information in our database, we normally store it without a time dimension even if it is only valid for a specific period of time. For example, people move around all the time, but most apps ask for your current address and rely on you to change it whenever you move. This works because most applications have no use case to be aware of your address history and only need your current address.</p>
+
+<p>However, for some systems, the time dimension is omnipresent whenever data is queried or mutated, and implementing them on traditional data models can pose serious challenges. I had a chance to work on a project with similar challenges that provided a good learning experience on how to overcome them. The project makes a good use case of how temporality can help streamline operations. To go into the details while not revealing proprietary information, let’s use an example of a tax system.</p>
+
+<h1 id="situation">Situation</h1>
+
+<p>To understand the challenges, let’s start with an overview of the tax system. We first define some use cases for our hypothetical tax system, understand the structure of tables involved in recording tax returns for users, and deep dive into problems due to that structure.</p>
+
+<h1 id="overview-of-tax-system">Overview of Tax System</h1>
+
+<p>The tax system is a single tool for residents of a country to submit their tax returns according to the tax percentages set at the state level. The system is used by two roles: administrators and taxpayers. To avoid confusion, please refrain from comparing this system to a real-world tax system, as it serves only as a reflection of the actual system we worked with. Our hypothetical tax system only supports the following use cases.</p>
+
+<p><img src="/assets/img/p2-image-1.svg" alt="Temporal System Use Case Diagram" /></p>
+
+<p>Taxpayers, when they sign up, enroll themselves in tax types like income tax, capital gains tax, etc. Then each year, the system calculates the amount of tax that is due for that tax year and also allows them to enter the tax they paid throughout the year. For the sake of simplicity, how those two values, i.e., tax paid and tax due, are balanced is not our concern.</p>
+
+<h2 id="structure-of-critical-tables">Structure of Critical Tables</h2>
+
+<p>Although the problems spanned multiple tables, they can be generalized using two tables used for storing state taxes and tax returns. The <code class="language-plaintext highlighter-rouge">state_taxes</code> table stores the <code class="language-plaintext highlighter-rouge">rate</code> to calculate the tax due for the taxpayer. For example, if the income tax rate is 0.7 and taxpayer income is 100$ then the income tax due is 100 * 0.07 = $7. The rate varies by type of tax and state.</p>
+
+<p><img src="/assets/img/p2-image-2.svg" alt="Temporal System Database Design" /></p>
+
+<p>One important thing to point out here is that the system was not designed to handle varying versions of data over time, although we have the column <code class="language-plaintext highlighter-rouge">year</code> in the table <code class="language-plaintext highlighter-rouge">state_taxes</code>. The access patterns assumed one row per tax for a state and the type of tax when the table is joined or read directly. In other words, there is a <code class="language-plaintext highlighter-rouge">unique(state_id, type)</code> constraint on the table. That essentially means you cannot add the same tax for the same type, for different years. To have some audit compatibilities rows were not updated, rather updates were applied by soft deleting the old and creating new rows with updates.</p>
+
+<p>The other table to consider is <code class="language-plaintext highlighter-rouge">tax_returns</code> responsible for storing the tax returns of a specific taxpayer. The table has one row per tax type for each payer, it stores tax returns within that row in the form of a JSON array.</p>
+
+<p><img src="/assets/img/p2-image-3.svg" alt="Temporal System Database Design" /></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">returns</code> column was added as a solution for storing returns for each user while still conforming to having only one row per tax. The <code class="language-plaintext highlighter-rouge">deleted_at</code> key served the same purpose for each JSON object as it did in <code class="language-plaintext highlighter-rouge">state_taxes</code> the table.</p>
+
+<h2 id="problems-with-the-underlying-structure">Problems with the Underlying Structure</h2>
+
+<p>The above structure functioned correctly only when data was added in a linear time order. However, a single retroactive update, whether to correct a mistake or add a new record, could introduce data inconsistencies. These inconsistencies sometimes led to data corruption, while in other cases, data loss occurred.</p>
+
+<h3 id="data-loss-on-updates">Data Loss on Updates</h3>
+
+<p>Unlike the <code class="language-plaintext highlighter-rouge">returns</code> column in <code class="language-plaintext highlighter-rouge">tax_returns</code>, the <code class="language-plaintext highlighter-rouge">state_taxes</code> table lacks a JSON column to store tax rates per year, presumably due to the absence of a use case for displaying rates for each tax year. As a result, any rate update, whether for correction or addition, results in the removal of the previous rate. In cases of retroactive updates, the system effectively loses the currently effective rate.</p>
+
+<p>For example, suppose admin has added rates for tax years 2021 and 2023 (currently effective). They later realized that the rate for 2021 was incorrect and wanted to update it. Now since <code class="language-plaintext highlighter-rouge">state_taxes</code> can only support one row for a tax, adding a correct rate for 2021 will result in a loss of the 2023 rate. Another case is that rates were added correctly for years 2021 and 2023 but they missed adding a rate for 2022, now adding that rate will again overwrite the rate for 2023.</p>
+
+<h3 id="data-corruption-on-updates">Data Corruption on Updates</h3>
+
+<p>The <code class="language-plaintext highlighter-rouge">tax_due</code> in the <code class="language-plaintext highlighter-rouge">results</code> column of <code class="language-plaintext highlighter-rouge">tax_returns</code> is a dynamic value calculated based on existing data in the system i.e. <code class="language-plaintext highlighter-rouge">income * tax_ratio</code>. Normally, such a calculated value shouldn’t be stored, but due to the data loss issue mentioned earlier, it was necessary to save it to preserve the value using the tax rate effective at the time of calculation. However, this would be more akin to keeping the best possible value rather than the correct value.</p>
+
+<p>The value stored at the time of adding tax returns remains valid as long as the factors used for its calculation, such as the tax ratio and income, are not updated. If these factors are updated, the field will contain an incorrect value according to the current system data and cannot be verified. In some cases, it might be argued that having no value stored is preferable to having an outdated or unverifiable one.</p>
+
+<h3 id="ineffective-auditing-capabilities">Ineffective auditing capabilities</h3>
+
+<p>The system is frequently used <code class="language-plaintext highlighter-rouge">deleted_at</code> and soft deletes to prevent loss of information for auditing purposes. Since they were system level, not application level construct, they were quite ineffective in providing any help to address the problems we have seen so far, when retroactive changes were made. The best case scenario was using them to figure out if a version of data existed at some point in some system and that is it.</p>
+
+<p>In temporal systems, auditing capability is required at the application level to facilitate resolving risks. For example, let’s say you bought a pair of shoes. After selling you that pair, the shop realized that the price was entered incorrectly in the system and they fixed it. Now, if you go back to return the shoes if they have a proper temporal system, they can quickly find out the effective price of shoes on the date when they were sold to you. Otherwise, there is no way for the system to find out the price on the date when the shoes were sold.</p>
+
+<h1 id="expectations-from-the-temporal-system">Expectations from the Temporal System</h1>
+
+<p>What we went through while trying to uncover the problems were basically a consequence of implementing time-based systems without a proper structure to support temporal transactions. This now leads us to define expectations for a temporal system to avoid the problems that we uncovered while also making it easier for users to work with it.</p>
+
+<h2 id="consistent-timelines">Consistent Timelines</h2>
+
+<p>As we have observed, when data validity is time-dependent, it results in multiple versions of data corresponding to different points in time. These variations collectively form timelines, and it is essential to maintain their consistency. Overlapping timelines can lead to indeterministic outcomes when attempting to identify a valid record for a specific date. To address this issue, consider the following example using the <code class="language-plaintext highlighter-rouge">state_taxes</code> table, which employs an <a href="https://en.wikipedia.org/wiki/Effective_date?ref=umairabid.com">effective date range</a> to denote the validity of tax rates.</p>
+
+<p><img src="/assets/img/p2-image-4.svg" alt="Temporal System Database Design" /></p>
+
+<blockquote>
+  <p>[start_time, end_time) is a convention to define ranges with start and end date. Here “[” means range includes start_time and “)” excludes end_time</p>
+</blockquote>
+
+<p>Now, let’s consider the scenario where we need to determine the income tax rate effective on the date 2023-01-15. Upon inspecting the date ranges, we can identify that this date falls within the row with id=1. In this case, obtaining a single row ensures determinism.</p>
+
+<p>However, if we attempt to find the rate for any date within February 2023, we would retrieve two rows. Consequently, for this rate, it becomes impossible to ascertain which ratio to apply. The motivation behind enforcing consistent timeframes is precisely to prevent such situations from arising.</p>
+
+<h2 id="consistent-implementation-across-tables">Consistent Implementation across tables</h2>
+
+<p>The implementation of temporal tables can vary from one table to another, and there may be situations where such customization is necessary. However, in most cases, it is not the ideal approach.</p>
+
+<p>For instance, consider a scenario where you need to join three temporal tables together, and each of these tables has implemented temporality differently. In such cases, fetching data in a single query can be challenging, if not entirely impossible.</p>
+
+<p>Moreover, while it may still be feasible to write data in such a setup, doing so often means sacrificing the potential for abstraction in both read and write patterns. A consistent implementation approach, on the other hand, enables seamless integration with Object-Relational Mapping (ORM) systems, making working with temporal tables a much more straightforward and efficient process.</p>
+
+<h2 id="prevent-the-loss-of-information">Prevent the loss of information</h2>
+
+<p>One of the fundamental reasons for incorporating a temporal aspect into your data is the preservation of information. In cases where information undergoes retroactive changes, it’s crucial that the system retains the data as it existed before the alteration to maintain auditing capabilities.</p>
+
+<p>In monetary systems, calculations often depend on specific configurations, even if those configurations are initially incorrect. These incorrect configurations are utilized in calculations until corrected. When these configurations are rectified later, with their effective or validity period remaining the same but only the data being updated, the system is still expected to retain the original configurations. They can help with auditing when you need to check what was calculated before at a specific point in time.</p>
+
+<h1 id="solution">Solution</h1>
+
+<p>As you might have already discerned, while many of these challenges and expectations can be addressed by extending the current design, such as expanding JSON columns to cover other columns and implementing upsert hooks to maintain system consistency, it’s evident that straightforward use cases can rapidly escalate the complexity of a system.</p>
+
+<p>In our forthcoming article, we will delve into a solution that tackles these issues without unnecessarily inflating system complexity.</p>]]></content><author><name>Umair Abid</name></author><summary type="html"><![CDATA[What goes wrong when temporal data — effective dates, history, audits — is forced into a schema that was only ever designed to hold the present.]]></summary></entry><entry><title type="html">Automation Engine Refactor for Performance and Maintainability</title><link href="https://umairabid.com/blog/2023/08/07/automation-engine-refactor-for-performance-and-maintainability/" rel="alternate" type="text/html" title="Automation Engine Refactor for Performance and Maintainability" /><published>2023-08-07T00:00:00-07:00</published><updated>2023-08-07T00:00:00-07:00</updated><id>https://umairabid.com/blog/2023/08/07/automation-engine-refactor-for-performance-and-maintainability</id><content type="html" xml:base="https://umairabid.com/blog/2023/08/07/automation-engine-refactor-for-performance-and-maintainability/"><![CDATA[<p>Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day again, at least for the exact root cause.</p>
+
+<h1 id="situation">Situation</h1>
+
+<p>The problem originated from the Pipeline Automation Engine of our CRM app. A pipeline consists of a series of stages that a <a href="https://en.wikipedia.org/wiki/Lead_generation?ref=umairabid.com">lead</a> go through to either become a sale or be lost. Each stage has associated actions like sending emails or text, in addition to the move action which decides the next stage for the lead. To understand how the flow works, please consider the preliminary database design below.</p>
+
+<p><img src="/assets/img/p1-image-1.svg" alt="Automation Engine Database Design" /></p>
+
+<p>The right side of the design is relations or tables containing the configuration which dictates how automation will be executed. Whereas the left side helps run the pipeline automation for the specific lead. Here is a brief summary of each table,</p>
+
+<p><strong>Pipeline</strong>: For example “Google Adwords Campaign”, can be one pipeline to convert leads from google adwords campaign to sales.</p>
+
+<p><strong>Pipelines Stages</strong>: Contains stages for each pipeline, for example, “Inquired”, “Responded” etc can be the stages that a lead goes through.</p>
+
+<p><strong>Pipeline Stage Actions</strong>: Send an introduction email and then move them to the “responded” stage would be an example of how actions work together, where sending an email and moving them to the stage are separate actions.</p>
+
+<p><strong>Lead</strong>: Any internet user who clicked on your ad, landed on your page, and gave their information.</p>
+
+<p><strong>Lead Stages</strong>: Contains all the stages a lead has been or is currently in.</p>
+
+<p><strong>Lead Stage Actions</strong>: All the actions which have been performed on lead are recorded by stage in this table. As soon as the lead enters in stage, this table is also populated with actions for that stage. Actions are executed serially.</p>
+
+<h1 id="problem">Problem</h1>
+
+<p>The beauty of startups is that you build something for one purpose and customers may use it in all different ways except the one it was intended for. This automation feature was built to manage the lead automation coming from landing pages, but one of our customers imported around 16k leads and ran automation on all of them. This caused an instant outage, where the connections were held up by queries coming from the automation system code. When we investigated the code scheduled to run after every five minutes, the problem became very apparent. Below is the simplified version of that code.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>for each lead in leads
+  lead_stages = get_lead_stages
+  for each lead_stage in lead_stages
+    last_performed_action = lead_stage.last_performed_action
+    sequence_number = last_performed_action.sequence_number || 0
+    action_to_perform = lead_stage.pipleline_stage.action_after(sequence_number)
+ 
+    if action_to_perform
+    	action_to_perform.perform
+</code></pre></div></div>
+
+<p>The thing which instantly comes out and explains the problem is that we are querying the full leads table after every five minutes, some non-apparent problems which were adding fuel to the fire were,</p>
+
+<ol>
+  <li>The job had no unique clause or any preventive measures to not schedule the job if the previously scheduled was still running</li>
+  <li>No eager loading is being used</li>
+  <li>Truly brute force, not making any use of information already stored in the system to determine which leads and actions need to be performed. Hence too many unnecessary computations.</li>
+</ol>
+
+<h1 id="solution">Solution</h1>
+
+<p>The brute-force nature of the solution provided an obvious hint for the solution i.e. limit unnecessary computations. Considering the major source of unnecessary computations was scanning the leads table, we could also rephrase the problem to “How do we only fetch the leads which have pending stage actions”. Once the problem was stated, the solution was a no-brainer since we can easily filter out the leads for whom all stage actions have been executed.</p>
+
+<p>Couple the above improvement which significantly reduced the leads every time the job is run with improvement over making the job unique and not scheduling it if the is still in progress, the two quick fixes helped us to resolve the outage, but we had to ask how long until the next outage?</p>
+
+<h1 id="challenges-on-the-horizon">Challenges on the Horizon</h1>
+
+<p>This was one of the core features where performance was not only expected but needed to be guaranteed under specific SLAs (e.g. the next action should be performed within 2 minutes after performing the previous one). Considering how one customer used the system in a way it was not intended to be used, it was only a matter of time before other customers put the system under identical stress. The system had to be rethought and replanned to at least give the first few hundred customers the best experience while we invested in other parts of the app.</p>
+
+<p>After a few discussions and meetings, the following problems (in order of their priority) were identified to be fixed,</p>
+
+<ol>
+  <li>One lead action should not block another lead action. Sending emails or texts can be an expensive operations</li>
+  <li>Performing actions can fail due to any number of reasons and the system is missing the retry ability. This especially becomes important due to the rate limits of third-party services. This also aggregates the first problem.</li>
+  <li>Importing 16000 leads is fine but adding them all into automation at once is not, especially when multiple accounts do that in a narrow window of time. There should be a limit on how many automation can be scheduled per account.</li>
+  <li>The query to fetch leads with pending actions might still return where no further action is required. For example
+    <ul>
+      <li>“wait” action can be used to add a buffer between actions until the wait time is over, no action can be performed on lead</li>
+      <li>Some actions might be triggered when as a response from the lead, like a reply to an email or text. Until a reply is received or the threshold to receive a reply is not over, no action can be performed on the lead.</li>
+    </ul>
+  </li>
+</ol>
+
+<h1 id="scaling-upwards">Scaling upwards</h1>
+
+<p>The first two problems pointed out that our system is missing two key pieces, making the automation loop async and applying throttling on automations by the organization. For rest, we also needed to augment <code class="language-plaintext highlighter-rouge">lead_stage_actions</code> table to store some extra information which would help filter out the leads if they are pending on user action or just need to be scheduled at some time in the future. To work around the problems we added,</p>
+
+<p>Two columns in the <code class="language-plaintext highlighter-rouge">lead_stage_actions</code> table,</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">perform_at</code> Action can only be performed after this timestamp</li>
+  <li><code class="language-plaintext highlighter-rouge">status</code> Hold status for lead actions, only pending actions can be performed</li>
+</ol>
+
+<p>and few classes, two fundamental classes were <code class="language-plaintext highlighter-rouge">Scheduler</code> responsible for querying and distributing actions to their appropriate handlers and <code class="language-plaintext highlighter-rouge">AutomationActionHandler</code> which all individual action handlers extend from (e.g. <code class="language-plaintext highlighter-rouge">EmailActionHandler</code>, <code class="language-plaintext highlighter-rouge">SmsActionHandler</code> etc.)</p>
+
+<p><img src="/assets/img/p1-image-2.svg" alt="Automation Enginer Class Diagram" /></p>
+
+<h1 id="knitting-everything-together">Knitting Everything Together</h1>
+
+<p>Eventually, we replaced the original automation loop with the following flow encapsulating primary automation flow end to end. The dashed lines represent the async/indirect flow where the next step is not executed in the same process. Few highlights of the flow</p>
+
+<ol>
+  <li>The scheduler is lean and only depends on one simple query.</li>
+  <li>All action handlers get executed in separate threads independently.</li>
+  <li>Rate limiting is applied on the action handlers level, allowing users to add leads in stages but preventing organizations to use more than allocated processing.</li>
+  <li>The automation fails gracefully in case of errors.</li>
+</ol>
+
+<p><img src="/assets/img/p1-image-3.svg" alt="Automation Enginer Flow Chart" /></p>
+
+<h1 id="aftermath">Aftermath</h1>
+
+<p>After the release, we continue monitoring the performance and user activities but nothing major came up, except tweaking limits and small bug fixes here and there. We had some concerns that relying on status to identify pending action may run into concurrency issues but since the application was not supposed to run on a massive scale just yet, we relied on database locks to ensure consistency.</p>]]></content><author><name>Umair Abid</name></author><summary type="html"><![CDATA[How a five-minute scheduler choked the database under a 16k-lead import, and the refactor that made the pipeline-automation engine safe to scale.]]></summary></entry></feed>

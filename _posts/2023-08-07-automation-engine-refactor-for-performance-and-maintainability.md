@@ -1,5 +1,6 @@
 ---
 title: Automation Engine Refactor for Performance and Maintainability
+description: How a five-minute scheduler choked the database under a 16k-lead import, and the refactor that made the pipeline-automation engine safe to scale.
 ---
 
 Imagine starting your day with your mailbox full of outages due to all database connections being held up for an extensive period. Nobody likes it and our team went on a mission to ensure we never have such a day again, at least for the exact root cause.

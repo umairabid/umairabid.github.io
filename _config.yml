@@ -1,8 +1,34 @@
 title: Umair Abid
-description: Backend engineer. Notes, projects, and the occasional write-up.
+tagline: Software engineer · backend-leaning full-stack
+description: >-
+  Notes on building production software — Ruby on Rails, databases,
+  sync pipelines, and the systems around them. By Umair Abid, a
+  software engineer with ~10 years of backend-leaning full-stack
+  experience.
 url: https://umairabid.com
+lang: en
+
+author:
+  name: Umair Abid
+  url: https://umairabid.com
+
+social:
+  name: Umair Abid
+  links:
+    - https://github.com/umairabid
+    - https://www.linkedin.com/in/umairabid
+
+logo: /assets/img/avatar.png
+
+feed:
+  path: feed.xml
 
 permalink: /blog/:year/:month/:day/:title/
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+  - jekyll-feed
 
 defaults:
   - scope:

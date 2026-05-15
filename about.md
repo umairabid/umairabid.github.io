@@ -7,14 +7,16 @@ permalink: /about/
 
 # About me
 
-I've worked as a software engineer for about ten years. Most of that
-time has been spent inside Ruby on Rails codebases — the kind that
+I've worked as a software engineer for about ten years. The bulk of
+that has been on the backend half of the stack — Rails codebases that
 started small, grew under product pressure, and now hold a real
-business together. I tend to gravitate toward the parts that are
-slowing teams down: slow queries, fragile workers, sync pipelines, the
-dashboard that takes fifteen seconds to load. The work I'm most proud
-of is the kind that quietly makes the next engineer's day a little
-easier.
+business together — but I'm a full-stack engineer when the work calls
+for it, and I'm just as happy shipping the React/GraphQL side of a
+feature as the Rails one. I tend to gravitate toward the parts that
+are slowing teams down: slow queries, fragile workers, sync
+pipelines, the dashboard that takes fifteen seconds to load. The work
+I'm most proud of is the kind that quietly makes the next engineer's
+day a little easier.
 
 Early in my career I was mostly driven by curiosity about how real
 systems work, and I tried to absorb as much as I could. Over time my

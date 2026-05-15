@@ -1,5 +1,6 @@
 ---
 title: Traveling time with Postgres Range Columns
+description: Using Postgres tstzrange columns and exclusion constraints to model temporal data — effective dates, history, and as-of queries — without bolting it on later.
 ---
 
 In [Challenges of Time-Based Systems Without Proper Database Structures](/2023/09/06/temporal-system-challenges.html), we looked into everything that went wrong when we tried to build a temporal system without a compatible foundation. In this article, we will describe how we added that foundation to support temporal use cases. We will start by discussing how we built the foundation using Postgres ranges that could be a potential denominator for any time-based system. The solution might not be general enough but it can provide some good insights for building a foundation for the temporal system.

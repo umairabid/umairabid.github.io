@@ -3,10 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Traveling time with Postgres Range Columns" />
+<meta name="author" content="Umair Abid" />
+<meta property="og:locale" content="en" />
+<meta name="description" content="Using Postgres tstzrange columns and exclusion constraints to model temporal data — effective dates, history, and as-of queries — without bolting it on later." />
+<meta name="twitter:description" property="og:description" content="Using Postgres tstzrange columns and exclusion constraints to model temporal data — effective dates, history, and as-of queries — without bolting it on later." />
+<link rel="canonical" href="https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/" />
+<meta property="og:url" content="https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/" />
+<meta property="og:site_name" content="Umair Abid" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-10-23T00:00:00-07:00" />
+<meta property="article:modified_time" content="2023-10-23T00:00:00-07:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Traveling time with Postgres Range Columns" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Umair Abid","url":"https://umairabid.com"},"dateModified":"2023-10-23T00:00:00-07:00","datePublished":"2023-10-23T00:00:00-07:00","description":"Using Postgres tstzrange columns and exclusion constraints to model temporal data — effective dates, history, and as-of queries — without bolting it on later.","headline":"Traveling time with Postgres Range Columns","mainEntityOfPage":{"@type":"WebPage","@id":"https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://umairabid.com/assets/img/avatar.png"},"name":"Umair Abid"},"url":"https://umairabid.com/blog/2023/10/23/postgres-temporal-data-tables/"}</script>
+<!-- End Jekyll SEO tag -->
+
   <title>Traveling time with Postgres Range Columns — Umair Abid</title>
-  <meta name="description" content="Backend engineer. Notes, projects, and the occasional write-up.">
+  <link rel="icon" type="image/png" href="/assets/img/avatar.png">
+  <link rel="apple-touch-icon" href="/assets/img/avatar.png">
+  <link type="application/atom+xml" rel="alternate" href="https://umairabid.com/feed.xml" title="Umair Abid" />
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
   <link href="/assets/css/styles.css" rel="stylesheet">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-7YKSG7QGFE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-7YKSG7QGFE');
+  </script>
 </head>
 <body>
   <header class="site-header">
