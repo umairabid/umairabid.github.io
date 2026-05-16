@@ -1,43 +1,132 @@
 ---
-title: Introducing LazySQL: A Database Client for the Shell
-description: 
+title: "Introducing LazySQL: A Database Client for the Shell"
+description: A minimal, terminal-first Postgres client with Vim bindings, a command-mode auth flow for rotating credentials, and session logs you can hand to an LLM agent.
 ---
 
-I always have had an urge to keep my system memory as low as possible. Initially it was due to lower compute available on my dev machine. Down the
-road I luckily did get my hands on power machines but the urge remained. Partially due to ever increasing memory usage of IDEs and browsers but new
-tools didn't help either. Running docker, visual studio code, database client, git client, postman and all other sorts of client didn't help and on
-top of it, if I was profiling background jobs, I was easily consuming 99% of memory. At this point memory was also not the only thing, switching
-between windows, keeping track of terminals running within IDEs and emulators for tailing logs was a headache in its own.
+I have always had an urge to keep my system memory as low as possible.
+It started out of necessity, my dev machine wasn't powerful enough to
+spare any but the habit stuck even after I got faster hardware. IDEs
+and browsers kept growing, and the rest of the stack didn't help. Docker,
+VS Code, a database client, a git client, Postman, plus whatever I was
+profiling that day. If a background job was under the microscope, I was
+sitting at 99% memory usage. And it wasn't just memory — switching
+between windows, juggling terminals inside the IDE, tailing logs in
+emulators, that was its own ongoing cost.
 
-I avoided vim because the shame of not being able to close one was too much. However, couple of years ago I started dabbling into self hosting and
-setting up observability stack instead of using off the shelf ones. That forced me to finally conquer my fear of vim. In the beginning, it was little
-things like editing nginx configs, tweaking docker files and navigating log files. My vim config eventually went to a point where I was able to
-perform most of my work within vim. After discovering tmux for building mini dashboards, it felt like my toolkit was complete and in my timeoff, I was
-able to build my workflow entirely within terminal. Browsers used to come late in my development flow as tdd practitioner. The only hurdle was my
-databasea client and they did not just had one pain point.
+I avoided Vim for years. The shame of not being able to close one was too
+much. But a couple of years ago I started self-hosting bits of my own
+observability stack instead of using the off-the-shelf ones, and that
+forced the issue. Small things at first — editing nginx configs, tweaking
+Dockerfiles, navigating log files. My config grew. Eventually I could do
+most of my work inside Vim. After I picked up tmux for building little
+dashboards, the toolkit felt complete. On my time off, I was running my
+whole workflow inside the terminal. Browsers started showing up late in
+the loop, which is what you'd expect from a TDD habit.
 
-Most of the good ones are licensed and each organization I worked with had different one depending on the technologies being used. If you were using
-nosql like dynamo they had their own clients. Most of the clients are general purpose way more tools than what normal application developer needs. My
-muscle memory just worked with vim shortcuts, editing queries were becoming a headache. Most of all, in most of modern enviorments, database
-credentials are usually kept in vaults and rotated even for development environments. That required constant copying and pasting credentials. All in
-all, I was looking for hackable, minimal client with vimbindings, just like lazygit. There was one opensource solution but the UI was not up to my
-taste, missing some features I was looking for. Having recently built an experiement arch linux installer, I was like why not and hence LazySQL was
-born.
+The one piece that wouldn't fit was the database client.
 
-LazySQL is a tui based application written in go with help of bubbltea and vimtea. It currently supports 
-- postgres but the hackable nature allows to easily plug more database drivers. 
-- It supports the usual with authentication with additional mode of configuring command to fetch credentials. 
-- In case of saving credentials, it takes benefit of os keyrings if available. 
-- It uses bindings famililar to vim and lazygit for navigation. 
-- For database explorarion it uses binding inspired from vim-fern, where once your reach the leaf nodes you can load the data in viewer pane. 
-- The editor allows you to run specific part queries using Ctrl+r binding. This was not available in vimtea and functionality is added in fork and PR has been opened. 
-- Having an LLM agent within the app is intentially omitted since I don't see every app having their own chatbox sustainable. Instead each session
-  opens a log file, that can be fetched directly into any LLM agent of choice. You will need PID, that is shown in footer.
+# Why a new database client
 
-In future iterations
+Database clients were the last sharp edge in my terminal-first setup, and
+they had more than one pain point:
 
-- More database drivers will be added, starting with mysql and dynamo.
-- Additional tools will be added to support llm agents, like adding and running queries directly from agent within specific instance of app
-- Bug fixes and performance improvements.
-- Adding support for more database and requested features.
+- **Most of the good ones are licensed.** Each company I worked at had
+  picked a different one depending on the stack — and if you were on a
+  NoSQL like Dynamo, you were on whatever vendor tooling came with it.
+- **They are big.** Most are general-purpose, with far more surface area
+  than an application developer needs day to day.
+- **They don't move like Vim.** My hands have a strong opinion about
+  motion keys, and editing queries in a non-Vim text box is friction
+  that compounds.
+- **Credentials rotate.** In most modern environments, even dev
+  credentials live in a vault and get rotated. That means a constant
+  loop of copy-paste-edit just to stay connected.
 
+What I actually wanted was a hackable, minimal client with Vim bindings —
+the same shape that `lazygit` has for git. There was one open-source TUI
+client in the space, but the UI wasn't quite to my taste and it was
+missing the features I cared about. I had recently finished an
+experimental Arch Linux installer, so building another thing from scratch
+felt reasonable. LazySQL was born out of that.
+
+![LazySQL demo](/assets/img/p4-demo.gif)
+
+# What LazySQL is
+
+LazySQL is a TUI written in Go on top of [`bubbletea`](https://github.com/charmbracelet/bubbletea)
+and [`vimtea`](https://github.com/kujtimiihoxha/vimtea). The current
+release is alpha and focused on PostgreSQL, but the internals are
+deliberately small and the driver layer is pluggable.
+
+Three panes, one footer, no gui.
+
+![Main UI](/assets/img/p4-main-ui.png)
+
+- **Left:** the explorer — databases, schemas, tables, and the table's
+  data / schema / indexes underneath them.
+- **Top-right:** the query editor, a real Vim buffer.
+- **Bottom-right:** the results viewer, scrollable in both axes.
+
+# The pieces I cared most about getting right
+
+**Three connection modes, including a command mode.** You can configure
+a connection with static credentials, with a connection URL, or — the
+one I built this for — by pointing LazySQL at a shell command that
+prints credentials on stdout. The command runs every time you connect,
+which means rotating-secret workflows (Vault, AWS RDS IAM, GCP IAM,
+short-lived dev tokens) stop being a copy-paste loop and become a
+one-time configuration.
+
+![Connection Manager](/assets/img/p4-connection-manager.png)
+
+**Credentials go in the OS keyring when available.** Passwords and any
+URLs that contain credentials are stored in the platform keyring —
+macOS Keychain, Windows Credential Locker, or Linux Secret Service. If
+no keyring is available (headless Linux, for instance), LazySQL falls
+back to plain JSON. That fallback is a deliberate choice — it keeps the
+tool usable in environments where a keyring isn't running — but it's a
+fallback, not a default.
+
+**Bindings borrowed from Vim and lazygit.** `h j k l` to move, `?` for
+help, `Shift+Tab` to cycle panes. The query editor is a full Vim buffer
+via `vimtea`, so modes, motions, and visual selection all work the way
+your fingers expect.
+
+**Explorer navigation borrowed from [`vim-fern`](https://github.com/lambdalisue/fern.vim).**
+`l` to expand a node, `h` to collapse. When you reach a leaf — a table's
+data, schema, or indexes — the result loads into the viewer pane. No
+modal popups, no separate window.
+
+**Run-selection in the editor.** Select a query in visual mode, hit
+`Ctrl+r`, and that fragment runs. `vimtea` didn't support this out of
+the box, so it lives in a fork right now; a PR is open upstream.
+
+**No built-in LLM chat.** This was intentional. I don't think every app
+having its own chat box is sustainable. Instead, each LazySQL session
+writes a log file at `~/.config/lazysql/sessions/session-<PID>.log` —
+the queries you ran, the schemas you touched, the kind of context an
+agent actually needs. The PID is in the footer. Pipe the file into
+Claude, Gemini, or whatever you use:
+
+```bash
+cat ~/.config/lazysql/sessions/session-<pid>.log | claude "summarize what I was doing"
+```
+
+Logs from a normally exited session are cleaned up on quit. Logs from
+dead processes are cleaned up on the next startup. If you want to keep
+one, copy it out while the session is alive.
+
+# What's next
+
+A few directions I expect to push this in:
+
+- **More drivers.** MySQL is next, then Dynamo. The adapter layer is the
+  obvious place to extend.
+- **First-class hooks for LLM agents.** Beyond the session log: things
+  like running queries from an agent against a specific live instance,
+  so the agent has somewhere to *act*, not just somewhere to read.
+- **The usual.** Bug fixes, performance, and the requests that come in
+  from people actually using it.
+
+The repo is at [github.com/umairabid/lazysql](https://github.com/umairabid/lazysql).
+It's early — issues and PRs are welcome.
